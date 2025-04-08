@@ -79,11 +79,84 @@ docker build -t mcp/slack -f src/slack/Dockerfile .
 }
 ```
 
+
 </details>
 
 > [!NOTE]
 > Contact Scott Clare for how to obtain bot token and team ID.
 
+### GitHub
+
+<details>
+<summary>Personal Access Token</summary>
+
+Create a GitHub Personal Access Token with appropriate permissions:
+
+1. Go to Personal access tokens (in GitHub Settings > Developer settings)
+2. Select which repositories you'd like this token to have access to (Public, All, or Select)
+3. If working only with public repositories, select only the Public repositories scope
+4. Add read only permissions for "Contents" in the "Repository permissions"
+5. Generate and copy the generated token
+
+[Here is a notion page with additional details on how this is setup]((https://www.notion.so/fuzzylabs/Github-MCP-1ceb6e71390f8004a106d17d61637c74))
+</details>
+
+<details>
+<summary>Usage with Claude Desktop</summary>
+
+To use this with Claude Desktop, add the following to your `claude_desktop_config.json`:
+
+**Docker**
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "mcp/github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "<YOUR_TOKEN>"
+      }
+    }
+  }
+}
+```
+
+**NPX**
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "<YOUR_TOKEN>"
+      }
+    }
+  }
+}
+```
+
+</details>
+
+<details>
+<summary>Build</summary>
+
+Docker build:
+```bash
+docker build -t mcp/github -f src/github/Dockerfile .
+```
+
+</details>
 
 # &#127939; How do I get started (Development)?
 
