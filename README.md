@@ -79,11 +79,10 @@ docker build -t mcp/slack -f src/slack/Dockerfile .
 }
 ```
 
-
-</details>
-
 > [!NOTE]
 > Contact Scott Clare for how to obtain bot token and team ID.
+
+</details>
 
 ### GitHub
 
@@ -98,15 +97,26 @@ Create a GitHub Personal Access Token with appropriate permissions:
 4. Add read only permissions for "Contents" in the "Repository permissions"
 5. Generate and copy the generated token
 
-[Here is a notion page with additional details on how this is setup]((https://www.notion.so/fuzzylabs/Github-MCP-1ceb6e71390f8004a106d17d61637c74))
+[Here is a notion page with additional details on how this is setup](https://www.notion.so/fuzzylabs/Github-MCP-1ceb6e71390f8004a106d17d61637c74)
 </details>
 
 <details>
-<summary>Usage with Claude Desktop</summary>
+<summary>Docker (recommended)</summary>
 
-To use this with Claude Desktop, add the following to your `claude_desktop_config.json`:
+1. Clone GitHub MCP server:
 
-**Docker**
+```bash
+git clone git@github.com:modelcontextprotocol/servers.git
+```
+
+2. Build docker image:
+
+```bash
+docker build -t mcp/github -f src/github/Dockerfile .
+```
+
+3. Update `claude_desktop_config.json` with the following:
+
 ```json
 {
   "mcpServers": {
@@ -128,7 +138,12 @@ To use this with Claude Desktop, add the following to your `claude_desktop_confi
 }
 ```
 
-**NPX**
+</details>
+
+<details>
+<summary>npx</summary>
+
+
 ```json
 {
   "mcpServers": {
@@ -144,16 +159,6 @@ To use this with Claude Desktop, add the following to your `claude_desktop_confi
     }
   }
 }
-```
-
-</details>
-
-<details>
-<summary>Build</summary>
-
-Docker build:
-```bash
-docker build -t mcp/github -f src/github/Dockerfile .
 ```
 
 </details>
