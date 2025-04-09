@@ -101,7 +101,7 @@ Create a GitHub Personal Access Token with appropriate permissions:
 </details>
 
 <details>
-<summary>Docker (recommended)</summary>
+<summary>Docker (Recommended)</summary>
 
 1. Clone GitHub MCP server:
 
