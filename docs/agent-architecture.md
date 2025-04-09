@@ -31,7 +31,9 @@ TBC
 
 ### Github MCP Server
 
-TBC
+![github-server-client-message](imgs/github-mcp-server-client-architecture.png)
+
+Once the agent identifies the file containing the faulty code from the error logs, it accesses the Github MCP server to fetch the file's contents, which it provides to the LLM as context for error diagnosis.
 
 ### Slack MCP Server
 
