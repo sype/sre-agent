@@ -92,7 +92,7 @@ docker build -t mcp/slack -f src/slack/Dockerfile .
 > 3. If working only with public repositories, select only the Public repositories scope
 > 4. Add read only permissions for "Contents" in the "Repository permissions"
 > 5. Generate and copy the generated token
-> 
+>
 > [Here is a notion page with additional details on how this is setup](https://www.notion.so/fuzzylabs/Github-MCP-1ceb6e71390f8004a106d17d61637c74)
 
 <details>
