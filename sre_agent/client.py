@@ -1,21 +1,18 @@
 """An MCTP SSE Client for interacting with a server using the MCP protocol."""
 
-import asyncio
-from collections import defaultdict
-import json
+import logging
 import os
-from typing import Optional, Any, Dict, List, Tuple
+from collections import defaultdict
 from contextlib import AsyncExitStack
-
-from mcp import ClientSession
-from mcp.client.sse import sse_client
+from typing import Any, Dict
 
 from anthropic import Anthropic
 from anthropic.types.message_param import MessageParam
 from anthropic.types.tool_param import ToolParam
 from dotenv import load_dotenv
 from fastapi import FastAPI
-import logging
+from mcp import ClientSession
+from mcp.client.sse import sse_client
 
 load_dotenv()  # load environment variables from .env
 
@@ -39,6 +36,7 @@ following slack channel: {CHANNEL_ID}."""
 
 class MCPClient:
     """An MCP client for connecting to a server using SSE transport."""
+
     def __init__(self):
         """Initialize the MCP client and set up the Anthropic API client."""
         self.anthropic = Anthropic()
@@ -74,30 +72,27 @@ class MCPClient:
         tools = response.tools
         print(f"\nConnected to {server_url} with tools:", [tool.name for tool in tools])
 
-        self.sessions[server_url] = {
-            "session": session,
-            "tools": tools
-        }
+        self.sessions[server_url] = {"session": session, "tools": tools}
 
     async def process_query(self, query: str) -> str:
         """Process a query using Claude and available tools"""
         messages = [
-            MessageParam(
-                role="user",
-                content=query
-            ),
+            MessageParam(role="user", content=query),
         ]
 
         available_tools = []
 
         for service, session in self.sessions.items():
-            available_tools.extend([
-                ToolParam(
-                    name=tool.name,
-                    description=tool.description if tool.description else "",
-                    input_schema=tool.inputSchema
-                ) for tool in session["tools"]
-            ])
+            available_tools.extend(
+                [
+                    ToolParam(
+                        name=tool.name,
+                        description=tool.description if tool.description else "",
+                        input_schema=tool.inputSchema,
+                    )
+                    for tool in session["tools"]
+                ]
+            )
 
         tool_results = []
         final_text = []
@@ -107,47 +102,46 @@ class MCPClient:
                 model="claude-3-5-sonnet-latest",
                 max_tokens=1000,
                 messages=messages,
-                tools=available_tools
+                tools=available_tools,
             )
             stop_reason = response.stop_reason
             print(response.content)
 
             for content in response.content:
-                if content.type == 'text':
+                if content.type == "text":
                     final_text.append(content.text)
-                elif content.type == 'tool_use':
+                elif content.type == "tool_use":
                     tool_name = content.name
                     tool_args: dict[str, Any] = content.input
 
                     for service, session in self.sessions.items():
                         if tool_name in [tool.name for tool in session["tools"]]:
-                            result = await session["session"].call_tool(tool_name, tool_args)
+                            result = await session["session"].call_tool(
+                                tool_name, tool_args
+                            )
                             break
                     else:
-                        raise ValueError(f"Tool {tool_name} not found in available tools.")
+                        raise ValueError(
+                            f"Tool {tool_name} not found in available tools."
+                        )
 
                     tool_results.append({"call": tool_name, "result": result})
-                    final_text.append(f"[Calling tool {tool_name} with args {tool_args}]")
+                    final_text.append(
+                        f"[Calling tool {tool_name} with args {tool_args}]"
+                    )
 
                     # Continue conversation with tool results
-                    if hasattr(content, 'text') and content.text:
+                    if hasattr(content, "text") and content.text:
                         messages.append(
-                            MessageParam(
-                                role="assistant",
-                                content=content.text
-                            ),
+                            MessageParam(role="assistant", content=content.text),
                         )
-                    messages.append(
-                        MessageParam(
-                            role="user",
-                            content=result.content
-                        )
-                    )
+                    messages.append(MessageParam(role="user", content=result.content))
 
         return "\n".join(final_text)
 
 
 app = FastAPI()
+
 
 @app.get("/diagnose")
 async def diagnose():
