@@ -24,14 +24,17 @@ if CHANNEL_ID is None:
     raise ValueError("Environment variable CHANNEL_ID is not set.")
 
 
-PROMPT = f"""I have an error with my application, can you check the logs for the
-cart service, I only want you to check the pods logs, look up only the 100 most
-recent logs. Feel free to scroll up until you find relevant errors that contain
-reference to a file, once you have these errors and the file name, get the file
-contents of the path src for the repository microservices-demo in the organisation
-fuzzylabs. Keep listing the directories until you find the file name and then get the
-contents of the file. Once you have diagnosed the error please report this to the
-following slack channel: {CHANNEL_ID}."""
+# PROMPT = f"""I have an error with my application, can you check the logs for the
+# cart service, I only want you to check the pods logs, look up only the 100 most
+# recent logs. Feel free to scroll up until you find relevant errors that contain
+# reference to a file, once you have these errors and the file name, get the file
+# contents of the path src for the repository microservices-demo in the organisation
+# fuzzylabs. Keep listing the directories until you find the file name and then get the
+# contents of the file. Once you have diagnosed the error please report this to the
+# following slack channel: {CHANNEL_ID}."""
+#
+
+PROMPT = f"""Can you list pull requests for the micr-oservices-demo repository in the fuzzylabs organisation and then post a message in the slack channel {CHANNEL_ID} with the list of pull requests? Once this is done you can end the conversation."""
 
 
 class MCPClient:
@@ -98,6 +101,7 @@ class MCPClient:
         final_text = []
         stop_reason = None
         while stop_reason != "end_turn":
+            print("Sending request to Claude...")
             response = self.anthropic.messages.create(
                 model="claude-3-5-sonnet-latest",
                 max_tokens=1000,
@@ -105,7 +109,6 @@ class MCPClient:
                 tools=available_tools,
             )
             stop_reason = response.stop_reason
-            print(response.content)
 
             for content in response.content:
                 if content.type == "text":
@@ -148,5 +151,6 @@ async def diagnose():
     async with MCPClient() as client:
         await client.connect_to_sse_server(server_url="http://slack:3001/sse")
         await client.connect_to_sse_server(server_url="http://github:3001/sse")
+        await client.connect_to_sse_server(server_url="http://kubernetes:3001/sse")
         response = await client.process_query(PROMPT)
         return response

@@ -11,7 +11,7 @@ services:
       - TRANSPORT=SSE
   kubernetes:
     build:
-      context: sre_agent/servers/kubernetes
+      context: sre_agent/servers/mcp-server-kubernetes
       dockerfile: Dockerfile
     ports:
       - "8001:3001"
@@ -25,7 +25,7 @@ services:
       context: sre_agent
       dockerfile: servers/github/Dockerfile
     ports:
-      - "8001:3001"
+      - "8002:3001"
     environment:
       - GITHUB_PERSONAL_ACCESS_TOKEN=${GITHUB_PERSONAL_ACCESS_TOKEN}
       - TRANSPORT=SSE

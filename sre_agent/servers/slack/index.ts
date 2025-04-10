@@ -546,7 +546,7 @@ async function main() {
   });
 
   if ((process.env.TRANSPORT = "SSE")) {
-    console.log("Connecting server through SSE transport");
+    console.error("Connecting server through SSE transport");
     const app = express();
 
     // to support multiple simultaneous connections we have a lookup object from

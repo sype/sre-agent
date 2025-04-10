@@ -31,7 +31,7 @@ jobs:
       - name: Start kubectl proxy
         run: |
           # Start the proxy in background and save the PID
-          kubectl proxy --port=8080 &  
+          kubectl proxy --port=8080 &
           echo "KUBECTL_PROXY_PID=$!" >> $GITHUB_ENV
 
           # Give the proxy a moment to start
