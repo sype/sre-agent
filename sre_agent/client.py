@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from mcp import ClientSession
 from mcp.client.sse import sse_client
 
-load_dotenv()  # load environment variables from .env
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ if CHANNEL_ID is None:
 # following slack channel: {CHANNEL_ID}."""
 #
 
-PROMPT = f"""Can you list pull requests for the micr-oservices-demo repository in the fuzzylabs organisation and then post a message in the slack channel {CHANNEL_ID} with the list of pull requests? Once this is done you can end the conversation."""
+PROMPT = f"""Can you list pull requests for the microservices-demo repository in the fuzzylabs organisation and then post a message in the slack channel {CHANNEL_ID} with the list of pull requests? Once this is done you can end the conversation."""
 
 
 class MCPClient:
@@ -133,7 +133,6 @@ class MCPClient:
                         f"[Calling tool {tool_name} with args {tool_args}]"
                     )
 
-                    # Continue conversation with tool results
                     if hasattr(content, "text") and content.text:
                         messages.append(
                             MessageParam(role="assistant", content=content.text),
