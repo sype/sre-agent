@@ -32,11 +32,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Activate uv virtual environment
-        run: |
-          uv sync
-          source .venv/bin/activate
-          alias pip="uv pip"  # Trick pre-commit to use uv
-
       - name: Run Pre-commit
-        uses: pre-commit/action@v3.0.0
+        repo: https://github.com/astral-sh/uv-pre-commit
+        rev: 0.6.14
