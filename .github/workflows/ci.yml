@@ -33,5 +33,4 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Run Pre-commit
-        repo: https://github.com/astral-sh/uv-pre-commit
-        rev: 0.6.14
+        uses: tox-dev/action-pre-commit-uv@v1
