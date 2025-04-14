@@ -147,7 +147,7 @@ class MCPClient:
                     logger.debug(f"Claude response: {content.text}")
                 elif content.type == "tool_use":
                     tool_name = content.name
-                    tool_args: dict[str, Any] = content.input
+                    tool_args: object = content.input
                     logger.info(f"Claude requested to use tool: {tool_name}")
 
                     for service, session in self.sessions.items():
@@ -187,7 +187,7 @@ class MCPClient:
         }
 
 
-app = FastAPI()
+app: FastAPI = FastAPI()
 
 
 @app.get("/diagnose")
