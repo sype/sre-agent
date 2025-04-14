@@ -4,7 +4,7 @@
 
 An SRE agent that can monitor application and infrastructure logs, diagnose issues, and report on diagnostics
 
-## Deploy Agent Locally using Docker Compose
+## Deploy Agent locally using Docker Compose
 
 - [Docker](https://docs.docker.com/get-docker/)
 - A `.env` file sitting at root containing the following:
@@ -16,6 +16,7 @@ An SRE agent that can monitor application and infrastructure logs, diagnose issu
     - `DEV_BEARER_TOKEN`: A password for developers to directly invoke the agent through the `/diagnose` endpoint.
     - `SLACK_SIGNING_SECRET`: The signing secret for the Slack `sre-agent`.
     - `TOOLS`: '["list_pods", "get_logs", "get_file_contents", "slack_post_requests"]'
+    - `AWS_ACCOUNT_ID` (Optional): The AWS account ID that stores the images. Only required if pulling images from ECR.
 
 ### Prerequisites
 
