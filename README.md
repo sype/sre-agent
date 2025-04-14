@@ -218,7 +218,9 @@ docker build -t mcp/k8s .
         "-i",
         "--rm",
         "-v",
-        "<absolute path to root>/.kube/config:/home/appuser/.kube/config",
+        "<absolute path to root>/.kube:/home/appuser/.kube",
+        "-v",
+        "<absolute path to root>/.aws:/home/appuser/.aws",
         "mcp/k8s"
       ],
     }
