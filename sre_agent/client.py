@@ -1,22 +1,24 @@
 """An MCTP SSE Client for interacting with a server using the MCP protocol."""
 
 import os
-from collections import defaultdict
 from contextlib import AsyncExitStack
-from typing import Any, Optional
+from dataclasses import dataclass
+from typing import Any, cast
 
 from anthropic import Anthropic
 from anthropic.types.message_param import MessageParam
 from anthropic.types.tool_param import ToolParam
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from mcp import ClientSession
 from mcp.client.sse import sse_client
+from mcp.types import Tool
+
+from sre_agent.utils.auth import is_request_valid
 
 from .utils.logger import logger
 
 load_dotenv()  # load environment variables from .env
-
 
 CHANNEL_ID = os.getenv("CHANNEL_ID")
 
@@ -34,7 +36,15 @@ if CHANNEL_ID is None:
 # contents of the file. Once you have diagnosed the error please report this to the
 # following slack channel: {CHANNEL_ID}."""
 
-# Break long string into multiple lines for better readability
+
+@dataclass
+class ServerSession:
+    """A dataclass to hold the session and tools for a server."""
+
+    tools: list[Tool]
+    session: ClientSession
+
+
 PROMPT = (
     f"Can you list pull requests for the microservices-demo repository in the "
     f"fuzzylabs organisation and then post a message in the slack channel {CHANNEL_ID} "
@@ -46,10 +56,9 @@ class MCPClient:
     """An MCP client for connecting to a server using SSE transport."""
 
     def __init__(self) -> None:
-        """Initialize the MCP client and set up the Anthropic API client."""
-        logger.info("Initialising MCP client")
+        """Initialise the MCP client and set up the Anthropic API client."""
         self.anthropic = Anthropic()
-        self.sessions: dict[str, dict[str, Any]] = defaultdict(dict)
+        self.sessions: dict[str, ServerSession] = {}
 
     async def __aenter__(self) -> "MCPClient":
         """Set up AsyncExitStack when entering the context manager."""
@@ -60,9 +69,9 @@ class MCPClient:
 
     async def __aexit__(
         self,
-        exc_type: Optional[type],
-        exc_val: Optional[Exception],
-        exc_tb: Optional[Any],
+        exc_type: type | None,
+        exc_val: Exception | None,
+        exc_tb: Any | None,
     ) -> None:
         """Clean up resources when exiting the context manager."""
         logger.debug("Exiting MCP client context")
@@ -71,6 +80,7 @@ class MCPClient:
     async def connect_to_sse_server(self, server_url: str) -> None:
         """Connect to an MCP server running with SSE transport."""
         logger.info(f"Connecting to SSE server: {server_url}")
+
         # Create and enter the SSE client context
         stream_ctx = sse_client(url=server_url)
         streams = await self.exit_stack.enter_async_context(stream_ctx)
@@ -91,11 +101,12 @@ class MCPClient:
             f"Connected to {server_url} with tools: {[tool.name for tool in tools]}"
         )
 
-        self.sessions[server_url] = {"session": session, "tools": tools}
+        self.sessions[server_url] = ServerSession(tools=tools, session=session)
 
     async def process_query(self, query: str) -> dict[str, Any]:
         """Process a query using Claude and available tools."""
         logger.info(f"Processing query: {query[:50]}...")
+
         messages = [
             MessageParam(role="user", content=query),
         ]
@@ -110,7 +121,7 @@ class MCPClient:
                         description=tool.description if tool.description else "",
                         input_schema=tool.inputSchema,
                     )
-                    for tool in session["tools"]
+                    for tool in session.tools
                 ]
             )
 
@@ -147,16 +158,16 @@ class MCPClient:
                     logger.debug(f"Claude response: {content.text}")
                 elif content.type == "tool_use":
                     tool_name = content.name
-                    tool_args: object = content.input
+                    tool_args = content.input
                     logger.info(f"Claude requested to use tool: {tool_name}")
 
                     for service, session in self.sessions.items():
-                        if tool_name in [tool.name for tool in session["tools"]]:
+                        if tool_name in [tool.name for tool in session.tools]:
                             logger.debug(
                                 f"Calling tool {tool_name} with args: {tool_args}"
                             )
-                            result = await session["session"].call_tool(
-                                tool_name, tool_args
+                            result = await session.session.call_tool(
+                                tool_name, cast(dict[str, str], tool_args)
                             )
                             break
                     else:
@@ -174,7 +185,9 @@ class MCPClient:
                         messages.append(
                             MessageParam(role="assistant", content=content.text),
                         )
-                    messages.append(MessageParam(role="user", content=result.content))
+                    messages.append(
+                        MessageParam(role="user", content=cast(str, result.content))
+                    )
 
         logger.info("Query processing completed")
         return {
@@ -191,8 +204,8 @@ app: FastAPI = FastAPI()
 
 
 @app.get("/diagnose")
-async def diagnose() -> dict[str, Any]:
-    """Handle the diagnose endpoint request."""
+async def diagnose(authorisation: None = Depends(is_request_valid)) -> dict[str, Any]:
+    """An endpoint for triggering agent diagnosis."""
     logger.info("Received diagnose request")
     async with MCPClient() as client:
         logger.info("Connecting to services")

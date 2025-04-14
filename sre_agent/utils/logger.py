@@ -1,4 +1,5 @@
 """Logger for the SRE agent client."""
+
 import logging
 import os
 from logging.handlers import RotatingFileHandler
