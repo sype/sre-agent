@@ -27,14 +27,14 @@ if CHANNEL_ID is None:
     raise ValueError("Environment variable CHANNEL_ID is not set.")
 
 
-# PROMPT = f"""I have an error with my application, can you check the logs for the
-# cart service, I only want you to check the pods logs, look up only the 100 most
-# recent logs. Feel free to scroll up until you find relevant errors that contain
-# reference to a file, once you have these errors and the file name, get the file
-# contents of the path src for the repository microservices-demo in the organisation
-# fuzzylabs. Keep listing the directories until you find the file name and then get the
-# contents of the file. Once you have diagnosed the error please report this to the
-# following slack channel: {CHANNEL_ID}."""
+PROMPT = f"""I have an error with my application, can you check the logs for the
+cart service, I only want you to check the pods logs, look up only the 100 most
+recent logs. Feel free to scroll up until you find relevant errors that contain
+reference to a file, once you have these errors and the file name, get the file
+contents of the path src for the repository microservices-demo in the organisation
+fuzzylabs. Keep listing the directories until you find the file name and then get the
+contents of the file. Once you have diagnosed the error please report this to the
+following slack channel: {CHANNEL_ID}."""
 
 
 @dataclass
@@ -43,13 +43,6 @@ class ServerSession:
 
     tools: list[Tool]
     session: ClientSession
-
-
-PROMPT = (
-    f"Can you list pull requests for the microservices-demo repository in the "
-    f"fuzzylabs organisation and then post a message in the slack channel {CHANNEL_ID} "
-    "with the list of pull requests? Once this is done you can end the conversation."
-)
 
 
 class MCPClient:
