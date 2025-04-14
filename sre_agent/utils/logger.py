@@ -1,3 +1,4 @@
+"""Logger for the SRE agent client."""
 import logging
 import os
 from logging.handlers import RotatingFileHandler
@@ -41,7 +42,7 @@ logger.propagate = False
 
 # Add color to console output
 class ColoredFormatter(logging.Formatter):
-    """Custom formatter with colors for console output"""
+    """Custom formatter with colors for console output."""
 
     COLORS = {
         "DEBUG": "\033[94m",  # Blue
@@ -52,10 +53,10 @@ class ColoredFormatter(logging.Formatter):
         "RESET": "\033[0m",  # Reset
     }
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         # Add color to the levelname
         if record.levelname in self.COLORS:
-            record.levelname = f"{self.COLORS[record.levelname]}{record.levelname}{self.COLORS['RESET']}"
+            record.levelname = f"{self.COLORS[record.levelname]}{record.levelname}{self.COLORS['RESET']}"  # noqa: E501
         return super().format(record)
 
 
