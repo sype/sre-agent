@@ -1,0 +1,29 @@
+services:
+  slack:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/mcp/slack:latest
+    environment:
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - SLACK_TEAM_ID=${SLACK_TEAM_ID}
+      - TRANSPORT=SSE
+  kubernetes:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/mcp/kubernetes:latest
+    volumes:
+      - ~/.kube:/home/appuser/.kube
+      - ~/.aws:/home/appuser/.aws
+    environment:
+      - TRANSPORT=SSE
+  github:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/mcp/github:latest
+    environment:
+      - GITHUB_PERSONAL_ACCESS_TOKEN=${GITHUB_PERSONAL_ACCESS_TOKEN}
+      - TRANSPORT=SSE
+  orchestrator:
+    image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/mcp/sre-orchestrator:latest
+    ports:
+      - "8003:80"
+
+    environment:
+      - DEV_BEARER_TOKEN=${DEV_BEARER_TOKEN}
+      - SLACK_SIGNING_SECRET=${SLACK_SIGNING_SECRET}
+      - CHANNEL_ID=${CHANNEL_ID}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
