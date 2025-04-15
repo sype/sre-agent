@@ -2,9 +2,7 @@
 
 import hashlib
 import hmac
-import os
 import time
-from dataclasses import dataclass, fields
 from functools import lru_cache
 
 from dotenv import load_dotenv
@@ -12,26 +10,9 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from .logger import logger
+from .schemas import AuthConfig
 
 load_dotenv()
-
-
-@dataclass(frozen=True)
-class AuthConfig:
-    """A config class containing authorisation environment variables."""
-
-    slack_signing_secret: str = os.getenv("SLACK_SIGNING_SECRET", "")
-    dev_bearer_token: str = os.getenv("DEV_BEARER_TOKEN", "")
-
-    def __post_init__(self) -> None:
-        """A post-constructor method for the dataclass."""
-        for field in fields(self):
-            attr = getattr(self, field.name)
-
-            if not attr:
-                msg = f"Environment variable {field.name} is not set."
-                logger.error(msg)
-                raise ValueError(msg)
 
 
 @lru_cache

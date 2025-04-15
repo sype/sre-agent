@@ -2,7 +2,6 @@
 
 import os
 from contextlib import AsyncExitStack
-from dataclasses import dataclass
 from typing import Any, cast
 
 from anthropic import Anthropic
@@ -12,10 +11,10 @@ from dotenv import load_dotenv
 from fastapi import Depends, FastAPI
 from mcp import ClientSession
 from mcp.client.sse import sse_client
-from mcp.types import Tool
 
 from .utils.auth import is_request_valid
 from .utils.logger import logger
+from .utils.schemas import MCPServer, ServerSession
 
 load_dotenv()  # load environment variables from .env
 
@@ -36,14 +35,6 @@ contents of the path src for the repository microservices-demo in the organisati
 fuzzylabs. Keep listing the directories until you find the file name and then get the
 contents of the file. Once you have diagnosed the error please report this to the
 following slack channel: {CHANNEL_ID}."""
-
-
-@dataclass
-class ServerSession:
-    """A dataclass to hold the session and tools for a server."""
-
-    tools: list[Tool]
-    session: ClientSession
 
 
 class MCPClient:
@@ -203,9 +194,9 @@ async def diagnose(authorisation: None = Depends(is_request_valid)) -> dict[str,
     logger.info("Received diagnose request")
     async with MCPClient() as client:
         logger.info("Connecting to services")
-        await client.connect_to_sse_server(server_url="http://slack:3001/sse")
-        await client.connect_to_sse_server(server_url="http://github:3001/sse")
-        await client.connect_to_sse_server(server_url="http://kubernetes:3001/sse")
+        for server in MCPServer:
+            await client.connect_to_sse_server(server_url=f"http://{server}:3001/sse")
+
         logger.info("Processing query")
         result = await client.process_query(PROMPT)
         logger.info(
