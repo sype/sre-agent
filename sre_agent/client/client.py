@@ -14,13 +14,14 @@ from mcp import ClientSession
 from mcp.client.sse import sse_client
 from mcp.types import Tool
 
-from sre_agent.utils.auth import is_request_valid
-
+from .utils.auth import is_request_valid
 from .utils.logger import logger
 
 load_dotenv()  # load environment variables from .env
 
 CHANNEL_ID = os.getenv("CHANNEL_ID")
+MODEL = "claude-3-5-sonnet-latest"
+MAX_TOKENS = 1000
 
 if CHANNEL_ID is None:
     logger.error("Environment variable CHANNEL_ID is not set.")
@@ -129,8 +130,8 @@ class MCPClient:
         while stop_reason != "end_turn":
             logger.info("Sending request to Claude")
             response = self.anthropic.messages.create(
-                model="claude-3-5-sonnet-latest",
-                max_tokens=1000,
+                model=MODEL,
+                max_tokens=MAX_TOKENS,
                 messages=messages,
                 tools=available_tools,
             )
