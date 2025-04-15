@@ -22,7 +22,7 @@ CHANNEL_ID = os.getenv("CHANNEL_ID")
 MODEL = "claude-3-5-sonnet-latest"
 MAX_TOKENS = 1000
 
-if CHANNEL_ID is None:
+if CHANNEL_ID is None or CHANNEL_ID == "":
     logger.error("Environment variable CHANNEL_ID is not set.")
     raise ValueError("Environment variable CHANNEL_ID is not set.")
 
