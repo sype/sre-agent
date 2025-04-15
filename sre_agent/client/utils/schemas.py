@@ -1,13 +1,28 @@
 """Schemas for the client."""
+from __future__ import annotations
 
+import json
 import os
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
 from mcp import ClientSession
 from mcp.types import Tool
 
 from .logger import logger
+
+
+def _validate_fields(self: DataclassInstance) -> None:
+    for config in fields(self):
+        attr = getattr(self, config.name)
+
+        if not attr:
+            msg = f"Environment variable {config.name.upper()} is not set."
+            logger.error(msg)
+            raise ValueError(msg)
 
 
 @dataclass
@@ -35,10 +50,20 @@ class AuthConfig:
 
     def __post_init__(self) -> None:
         """A post-constructor method for the dataclass."""
-        for field in fields(self):
-            attr = getattr(self, field.name)
+        _validate_fields(self)
 
-            if not attr:
-                msg = f"Environment variable {field.name} is not set."
-                logger.error(msg)
-                raise ValueError(msg)
+
+@dataclass(frozen=True)
+class ClientConfig:
+    """A client config storing parsed env variables."""
+
+    channel_id: str = os.getenv("CHANNEL_ID", "")
+    tools: list[str] = field(
+        default_factory=lambda: json.loads(os.getenv("TOOLS", "[]"))
+    )
+    model: str = "claude-3-5-sonnet-latest"
+    max_tokens: int = 1000
+
+    def __post_init__(self) -> None:
+        """A post-constructor method for the dataclass."""
+        _validate_fields(self)

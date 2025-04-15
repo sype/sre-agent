@@ -1,7 +1,7 @@
 """An MCTP SSE Client for interacting with a server using the MCP protocol."""
 
-import os
 from contextlib import AsyncExitStack
+from functools import lru_cache
 from typing import Any, cast
 
 from anthropic import Anthropic
@@ -14,17 +14,14 @@ from mcp.client.sse import sse_client
 
 from .utils.auth import is_request_valid
 from .utils.logger import logger
-from .utils.schemas import MCPServer, ServerSession
+from .utils.schemas import ClientConfig, MCPServer, ServerSession
 
 load_dotenv()  # load environment variables from .env
 
-CHANNEL_ID = os.getenv("CHANNEL_ID")
-MODEL = "claude-3-5-sonnet-latest"
-MAX_TOKENS = 1000
 
-if CHANNEL_ID is None or CHANNEL_ID == "":
-    logger.error("Environment variable CHANNEL_ID is not set.")
-    raise ValueError("Environment variable CHANNEL_ID is not set.")
+@lru_cache
+def _get_client_config() -> ClientConfig:
+    return ClientConfig()
 
 
 PROMPT = f"""I have an error with my application, can you check the logs for the
@@ -34,7 +31,7 @@ reference to a file, once you have these errors and the file name, get the file
 contents of the path src for the repository microservices-demo in the organisation
 fuzzylabs. Keep listing the directories until you find the file name and then get the
 contents of the file. Once you have diagnosed the error please report this to the
-following slack channel: {CHANNEL_ID}."""
+following slack channel: {_get_client_config().channel_id}."""
 
 
 class MCPClient:
@@ -107,6 +104,7 @@ class MCPClient:
                         input_schema=tool.inputSchema,
                     )
                     for tool in session.tools
+                    if tool.name in _get_client_config().tools
                 ]
             )
 
@@ -121,8 +119,8 @@ class MCPClient:
         while stop_reason != "end_turn":
             logger.info("Sending request to Claude")
             response = self.anthropic.messages.create(
-                model=MODEL,
-                max_tokens=MAX_TOKENS,
+                model=_get_client_config().model,
+                max_tokens=_get_client_config().max_tokens,
                 messages=messages,
                 tools=available_tools,
             )
