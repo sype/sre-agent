@@ -145,7 +145,7 @@ class MCPClient:
                         input_schema=tool.inputSchema,
                     )
                     for tool in session.tools
-                    # if tool.name in _get_client_config().tools
+                    if tool.name in _get_client_config().tools
                 ]
             )
 
