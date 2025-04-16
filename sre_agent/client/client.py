@@ -6,12 +6,14 @@ from typing import Any, cast
 
 from anthropic import Anthropic
 from anthropic.types.message_param import MessageParam
+from anthropic.types.text_block_param import TextBlockParam
 from anthropic.types.tool_param import ToolParam
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI
 from mcp import ClientSession
 from mcp.client.sse import sse_client
 from mcp.shared.exceptions import McpError
+from mcp.types import TextContent
 
 from .utils.auth import is_request_valid
 from .utils.logger import logger
@@ -86,12 +88,50 @@ class MCPClient:
 
         self.sessions[server_url] = ServerSession(tools=tools, session=session)
 
-    async def process_query(self, query: str) -> dict[str, Any]:  # noqa: C901, PLR0912
+    def _convert_tool_result_to_text_blocks(
+        self, result: str | list[TextContent]
+    ) -> list[TextBlockParam]:
+        blocks = []
+        if isinstance(result, str):
+            blocks = [TextBlockParam(text=result, type="text")]
+        elif isinstance(result, list):
+            for content in result:
+                if isinstance(content, TextContent):
+                    blocks.append(TextBlockParam(text=content.text, type="text"))
+                else:
+                    raise ValueError(f"Unsupported tool result type: {type(content)}")
+
+        # Add cache control to the blocks
+        blocks[-1]["cache_control"] = {"type": "ephemeral"}
+
+        return blocks
+
+    def _remove_cache_control(self, messages: list[MessageParam]) -> list[MessageParam]:
+        for message in messages[::-1]:
+            if isinstance(message["role"], str):
+                continue
+            for block in message["content"][::-1]:
+                if isinstance(block, TextBlockParam) and "cache_control" in block:
+                    # We assume there is only one cache control block
+                    del block["cache_control"]
+                    return messages
+        return messages
+
+    async def process_query(  # noqa: C901, PLR0912, PLR0915
+        self, query: str
+    ) -> dict[str, Any]:
         """Process a query using Claude and available tools."""
         logger.info(f"Processing query: {query[:50]}...")
 
         messages = [
-            MessageParam(role="user", content=query),
+            MessageParam(
+                role="user",
+                content=[
+                    TextBlockParam(
+                        text=query, type="text", cache_control={"type": "ephemeral"}
+                    )
+                ],
+            ),
         ]
 
         available_tools = []
@@ -105,9 +145,12 @@ class MCPClient:
                         input_schema=tool.inputSchema,
                     )
                     for tool in session.tools
-                    if tool.name in _get_client_config().tools
+                    # if tool.name in _get_client_config().tools
                 ]
             )
+
+        # Enable tool caching
+        available_tools[-1]["cache_control"] = {"type": "ephemeral"}
 
         final_text = []
         stop_reason = None
@@ -115,6 +158,8 @@ class MCPClient:
         # Track token usage
         total_input_tokens = 0
         total_output_tokens = 0
+        total_cache_creation_tokens = 0
+        total_cache_read_tokens = 0
 
         tool_retries = 0
 
@@ -135,9 +180,17 @@ class MCPClient:
             if hasattr(response, "usage"):
                 total_input_tokens += response.usage.input_tokens
                 total_output_tokens += response.usage.output_tokens
+                if response.usage.cache_creation_input_tokens is not None:
+                    total_cache_creation_tokens += (
+                        response.usage.cache_creation_input_tokens
+                    )
+                if response.usage.cache_read_input_tokens is not None:
+                    total_cache_read_tokens += response.usage.cache_read_input_tokens
                 logger.info(
                     f"Token usage - Input: {response.usage.input_tokens}, "
-                    f"Output: {response.usage.output_tokens}"
+                    f"Output: {response.usage.output_tokens}, "
+                    f"Cache Creation: {response.usage.cache_creation_input_tokens}, "
+                    f"Cache Read: {response.usage.cache_read_input_tokens}"
                 )
 
             for content in response.content:
@@ -182,11 +235,25 @@ class MCPClient:
                         f"[Calling tool {tool_name} with args {tool_args}]"
                     )
 
+                    messages = self._remove_cache_control(messages)
+
                     if hasattr(content, "text") and content.text:
                         messages.append(
-                            MessageParam(role="assistant", content=content.text),
+                            MessageParam(
+                                role="assistant",
+                                content=[
+                                    TextBlockParam(text=content.text, type="text")
+                                ],
+                            ),
                         )
-                    messages.append(MessageParam(role="user", content=result_content))
+                    messages.append(
+                        MessageParam(
+                            role="user",
+                            content=self._convert_tool_result_to_text_blocks(
+                                result_content
+                            ),
+                        )
+                    )
 
         logger.info("Query processing completed")
         return {
@@ -194,6 +261,8 @@ class MCPClient:
             "token_usage": {
                 "input_tokens": total_input_tokens,
                 "output_tokens": total_output_tokens,
+                "cache_creation_tokens": total_cache_creation_tokens,
+                "cache_read_tokens": total_cache_read_tokens,
                 "total_tokens": total_input_tokens + total_output_tokens,
             },
         }
@@ -234,6 +303,8 @@ async def diagnose(
         logger.info(
             f"Token usage - Input: {result['token_usage']['input_tokens']}, "
             f"Output: {result['token_usage']['output_tokens']}, "
+            f"Cache Creation: {result['token_usage']['cache_creation_tokens']}, "
+            f"Cache Read: {result['token_usage']['cache_read_tokens']}, "
             f"Total: {result['token_usage']['total_tokens']}"
         )
         logger.info("Query processed successfully")
