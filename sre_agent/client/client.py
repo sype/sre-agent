@@ -108,12 +108,12 @@ class MCPClient:
 
     def _remove_cache_control(self, messages: list[MessageParam]) -> list[MessageParam]:
         for message in messages[::-1]:
-            if isinstance(message["role"], str):
+            if isinstance(message["content"], str):
                 continue
-            for block in message["content"][::-1]:
-                if isinstance(block, TextBlockParam) and "cache_control" in block:
+            for block in list(message["content"])[::-1]:
+                if isinstance(block, dict) and "cache_control" in block:
                     # We assume there is only one cache control block
-                    del block["cache_control"]
+                    del block["cache_control"]  # type: ignore
                     return messages
         return messages
 
