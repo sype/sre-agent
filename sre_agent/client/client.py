@@ -91,6 +91,14 @@ class MCPClient:
     def _convert_tool_result_to_text_blocks(
         self, result: str | list[TextContent]
     ) -> list[TextBlockParam]:
+        """Convert a tool result to a list of text blocks.
+
+        Args:
+            result: The result to convert to a list of text blocks.
+
+        Returns:
+            The list of text blocks.
+        """
         blocks = []
         if isinstance(result, str):
             blocks = [TextBlockParam(text=result, type="text")]
@@ -107,6 +115,14 @@ class MCPClient:
         return blocks
 
     def _remove_cache_control(self, messages: list[MessageParam]) -> list[MessageParam]:
+        """Remove the cache control from the messages.
+
+        Args:
+            messages: The list of messages to remove the cache control from.
+
+        Returns:
+            The list of messages with the cache control removed.
+        """
         for message in messages[::-1]:
             if isinstance(message["content"], str):
                 continue
@@ -180,11 +196,11 @@ class MCPClient:
             if hasattr(response, "usage"):
                 total_input_tokens += response.usage.input_tokens
                 total_output_tokens += response.usage.output_tokens
-                if response.usage.cache_creation_input_tokens is not None:
+                if response.usage.cache_creation_input_tokens:
                     total_cache_creation_tokens += (
                         response.usage.cache_creation_input_tokens
                     )
-                if response.usage.cache_read_input_tokens is not None:
+                if response.usage.cache_read_input_tokens:
                     total_cache_read_tokens += response.usage.cache_read_input_tokens
                 logger.info(
                     f"Token usage - Input: {response.usage.input_tokens}, "
