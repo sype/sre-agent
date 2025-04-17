@@ -1,5 +1,6 @@
 """An MCTP SSE Client for interacting with a server using the MCP protocol."""
 
+import time
 from contextlib import AsyncExitStack
 from functools import lru_cache
 from typing import Any, cast
@@ -138,6 +139,7 @@ class MCPClient:
     ) -> dict[str, Any]:
         """Process a query using Claude and available tools."""
         logger.info(f"Processing query: {query[:50]}...")
+        start_time = time.perf_counter()
 
         messages = [
             MessageParam(
@@ -184,12 +186,15 @@ class MCPClient:
             and tool_retries < _get_client_config().max_tool_retries
         ):
             logger.info("Sending request to Claude")
+            claude_start_time = time.perf_counter()
             response = self.anthropic.messages.create(
                 model=_get_client_config().model,
                 max_tokens=_get_client_config().max_tokens,
                 messages=messages,
                 tools=available_tools,
             )
+            claude_duration = time.perf_counter() - claude_start_time
+            logger.info(f"Claude request took {claude_duration:.2f} seconds")
             stop_reason = response.stop_reason
 
             # Track token usage from this response
@@ -224,8 +229,14 @@ class MCPClient:
                                 f"Calling tool {tool_name} with args: {tool_args}"
                             )
                             try:
+                                tool_start_time = time.perf_counter()
                                 result = await session.session.call_tool(
                                     tool_name, cast(dict[str, str], tool_args)
+                                )
+                                tool_duration = time.perf_counter() - tool_start_time
+                                logger.info(
+                                    f"Tool {tool_name} call took "
+                                    f"{tool_duration:.2f} seconds"
                                 )
                                 result_content = cast(str, result.content)
                                 tool_retries = 0
@@ -271,6 +282,8 @@ class MCPClient:
                         )
                     )
 
+        total_duration = time.perf_counter() - start_time
+        logger.info(f"Total process_query execution took {total_duration:.2f} seconds")
         logger.info("Query processing completed")
         return {
             "response": "\n".join(final_text),
@@ -280,6 +293,9 @@ class MCPClient:
                 "cache_creation_tokens": total_cache_creation_tokens,
                 "cache_read_tokens": total_cache_read_tokens,
                 "total_tokens": total_input_tokens + total_output_tokens,
+            },
+            "timing": {
+                "total_duration": total_duration,
             },
         }
 
