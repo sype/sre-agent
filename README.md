@@ -2,11 +2,17 @@
     SRE Agent :detective:
 </h1>
 
-An SRE agent that can monitor application and infrastructure logs, diagnose issues, and report on diagnostics
+An SRE agent that can monitor application and infrastructure logs, diagnose issues, and report on diagnostics following an error in an application.
+
+![ezgif com-speed](https://github.com/user-attachments/assets/42d4abc0-7df4-4062-a971-c5b0ddf112c9)
 
 # Deployment
 
 We currently support two deployment methods for the MCP servers and client, one locally, and one on AWS.
+
+## Deploy Agent on Amazon Elastic Kubernetes Services (EKS)
+
+See the [kubernetes-deployment.md](/docs/kubernetes-deployment.md) page for instructions on how to deploy the Agent to EKS.
 
 ## Deploy Agent locally using Docker Compose
 
@@ -17,10 +23,6 @@ http://localhost:8003/diagnose?service=<service> \
 -H 'accept: application/json' \
 -H 'Authorization: Bearer <token>'
 ```
-
-## Deploy Agent on Amazon Elastic Kubernetes Services (EKS)
-
-See the [kubernetes-deployment.md](/docs/kubernetes-deployment.md) page for instructions on how to deploy the Agent to EKS.
 
 ### Prerequisites
 

@@ -1,18 +1,18 @@
 # Production Journey
 
-We aim to scale up the agent from a local deployment to a production deployment. The following steps outline the journey:
+Our aim is to scale up the agent from a local deployment to a production deployment. The following steps outline the journey:
 
-1. Initially, we deploy the agent locally using the Claude Desktop to orchestrate the whole process.
+1. Firstly, we will deploy the agent locally using a AI application, like Claude Desktop or Cursor, to orchestrate the whole process.
 
-Demo: TBC
+https://github.com/user-attachments/assets/b1b7199b-091a-404c-b867-99560c15b7f1
 
-2. Once we have an initial PoC in Claude Desktop we remove the Claude desktop training wheels and deploy a local implementation of the client and the servers with Docker Compose using API calls to Anthropic for our LLM.
+2. Once we have an initial PoC using an AI app as our client we will remove these training wheels and deploy a local implementation of the client and the servers with Docker Compose using API calls to Anthropic for our LLM.
 
-Demo: TBC
+https://github.com/user-attachments/assets/ec5736ad-c483-4693-93f2-742a84abfc76
 
-3. Once we have deployed the agent locally using Docker Compose we will deploy the agent to a K8s cluster in AWS.
+3. Once we have deployed the agent locally using Docker Compose we will deploy the agent to a Kubernetes cluster in AWS.
 
-Demo: TBC
+https://github.com/user-attachments/assets/df43c212-7709-48c4-9d9d-b2329a82910e
 
 4. Finally, we will deploy our own model swapping out Anthropic for calls to our own service.
 
