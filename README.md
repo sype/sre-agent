@@ -2,7 +2,13 @@
     SRE Agent :detective:
 </h1>
 
-An SRE agent that can monitor application and infrastructure logs, diagnose issues, and report on diagnostics
+An SRE agent that can monitor application and infrastructure logs, diagnose issues, and report on diagnostics following an error in an application.
+
+![ezgif com-speed](https://github.com/user-attachments/assets/42d4abc0-7df4-4062-a971-c5b0ddf112c9)
+
+# Deployment
+
+We currently support two deployment methods for the MCP servers and client, one locally, and one on AWS.
 
 # Deployment
 
