@@ -10,9 +10,9 @@ An SRE agent that can monitor application and infrastructure logs, diagnose issu
 
 We currently support two deployment methods for the MCP servers and client, one locally, and one on AWS.
 
-# Deployment
+## Deploy Agent on Amazon Elastic Kubernetes Services (EKS)
 
-We currently support two deployment methods for the MCP servers and client, one locally, and one on AWS.
+See the [kubernetes-deployment.md](/docs/kubernetes-deployment.md) page for instructions on how to deploy the Agent to EKS.
 
 ## Deploy Agent locally using Docker Compose
 
@@ -23,10 +23,6 @@ http://localhost:8003/diagnose?service=<service> \
 -H 'accept: application/json' \
 -H 'Authorization: Bearer <token>'
 ```
-
-## Deploy Agent on Amazon Elastic Kubernetes Services (EKS)
-
-See the [kubernetes-deployment.md](/docs/kubernetes-deployment.md) page for instructions on how to deploy the Agent to EKS.
 
 ### Prerequisites
 
