@@ -15,6 +15,7 @@ import {
 } from "./tools/describe_cronjob.js";
 import { listJobs, listJobsSchema } from "./tools/list_jobs.js";
 import { getJobLogs, getJobLogsSchema } from "./tools/get_job_logs.js";
+import { describeNode, describeNodeSchema } from "./tools/describe_node.js";
 import {
   installHelmChart,
   installHelmChartSchema,
@@ -80,10 +81,93 @@ import {
   describeDeploymentSchema,
 } from "./tools/describe_deployment.js";
 import {
+  updateDeployment,
+  updateDeploymentSchema,
+} from "./tools/update_deployment.js";
+import {
   createConfigMap,
   CreateConfigMapSchema,
 } from "./tools/create_configmap.js";
+import { getConfigMap, GetConfigMapSchema } from "./tools/get_configmap.js";
+import { updateConfigMap, UpdateConfigMapSchema } from "./tools/update_configmap.js";
+import { deleteConfigMap, DeleteConfigMapSchema } from "./tools/delete_configmap.js";
+import { listContexts, listContextsSchema } from "./tools/list_contexts.js";
+import {
+  getCurrentContext,
+  getCurrentContextSchema,
+} from "./tools/get_current_context.js";
+import {
+  setCurrentContext,
+  setCurrentContextSchema,
+} from "./tools/set_current_context.js";
+import { createService, createServiceSchema } from "./tools/create_service.js";
+import {
+  describeService,
+  describeServiceSchema,
+} from "./tools/describe_service.js";
+import { updateService, updateServiceSchema } from "./tools/update_service.js";
+import { deleteService, deleteServiceSchema } from "./tools/delete_service.js";
 import logger from "./utils/logger.js";
+
+
+// Check if non-destructive tools only mode is enabled
+const nonDestructiveTools =
+  process.env.ALLOW_ONLY_NON_DESTRUCTIVE_TOOLS === "true";
+
+// Define destructive tools (delete and uninstall operations)
+const destructiveTools = [
+  deletePodSchema,
+  deleteServiceSchema,
+  deleteDeploymentSchema,
+  deleteNamespaceSchema,
+  uninstallHelmChartSchema,
+  DeleteCronJobSchema,
+  cleanupSchema, // Cleanup is also destructive as it deletes resources
+];
+
+// Get all available tools
+const allTools = [
+  cleanupSchema,
+  createDeploymentSchema,
+  createNamespaceSchema,
+  createPodSchema,
+  createCronJobSchema,
+  createServiceSchema,
+  deletePodSchema,
+  deleteDeploymentSchema,
+  deleteNamespaceSchema,
+  deleteServiceSchema,
+  describeCronJobSchema,
+  describePodSchema,
+  describeNodeSchema,
+  describeDeploymentSchema,
+  describeServiceSchema,
+  explainResourceSchema,
+  getEventsSchema,
+  getJobLogsSchema,
+  getLogsSchema,
+  installHelmChartSchema,
+  listApiResourcesSchema,
+  listCronJobsSchema,
+  listContextsSchema,
+  getCurrentContextSchema,
+  setCurrentContextSchema,
+  listDeploymentsSchema,
+  listJobsSchema,
+  listNamespacesSchema,
+  listNodesSchema,
+  listPodsSchema,
+  listServicesSchema,
+  uninstallHelmChartSchema,
+  updateDeploymentSchema,
+  upgradeHelmChartSchema,
+  PortForwardSchema,
+  StopPortForwardSchema,
+  scaleDeploymentSchema,
+  DeleteCronJobSchema,
+  CreateConfigMapSchema,
+  updateServiceSchema,
+];
 
 const k8sManager = new KubernetesManager();
 
@@ -92,47 +176,21 @@ const server = new Server(
     name: serverConfig.name,
     version: serverConfig.version,
   },
-  serverConfig,
+  serverConfig
 );
 
 // Tools handlers
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   logger.debug("Received ListToolsRequest");
-  return {
-    tools: [
-      cleanupSchema,
-      createDeploymentSchema,
-      createNamespaceSchema,
-      createPodSchema,
-      createCronJobSchema,
-      deletePodSchema,
-      deleteDeploymentSchema,
-      deleteNamespaceSchema,
-      describeCronJobSchema,
-      describePodSchema,
-      describeDeploymentSchema,
-      explainResourceSchema,
-      getEventsSchema,
-      getJobLogsSchema,
-      getLogsSchema,
-      installHelmChartSchema,
-      listApiResourcesSchema,
-      listCronJobsSchema,
-      listDeploymentsSchema,
-      listJobsSchema,
-      listNamespacesSchema,
-      listNodesSchema,
-      listPodsSchema,
-      listServicesSchema,
-      uninstallHelmChartSchema,
-      upgradeHelmChartSchema,
-      PortForwardSchema,
-      StopPortForwardSchema,
-      scaleDeploymentSchema,
-      DeleteCronJobSchema,
-      CreateConfigMapSchema,
-    ],
-  };
+
+  // Filter out destructive tools if ALLOW_ONLY_NON_DESTRUCTIVE_TOOLS is set to 'true'
+  const tools = nonDestructiveTools
+    ? allTools.filter(
+        (tool) => !destructiveTools.some((dt) => dt.name === tool.name)
+      )
+    : allTools;
+
+  return { tools };
 });
 
 server.setRequestHandler(
@@ -141,7 +199,6 @@ server.setRequestHandler(
     params: { name: string; _meta?: any; arguments?: Record<string, any> };
     method: string;
   }) => {
-    logger.debug("Received CallToolRequest", { request });
     try {
       const { name, arguments: input = {} } = request.params;
 
@@ -157,7 +214,7 @@ server.setRequestHandler(
                     success: true,
                   },
                   null,
-                  2,
+                  2
                 ),
               },
             ],
@@ -169,7 +226,7 @@ server.setRequestHandler(
             k8sManager,
             input as {
               name: string;
-            },
+            }
           );
         }
 
@@ -181,7 +238,7 @@ server.setRequestHandler(
               namespace: string;
               template: string;
               command?: string[];
-            },
+            }
           );
         }
 
@@ -195,7 +252,7 @@ server.setRequestHandler(
               image: string;
               command?: string[];
               suspend?: boolean;
-            },
+            }
           );
         }
 
@@ -205,7 +262,7 @@ server.setRequestHandler(
             input as {
               name: string;
               namespace: string;
-            },
+            }
           );
         }
         case "delete_pod": {
@@ -215,7 +272,7 @@ server.setRequestHandler(
               name: string;
               namespace: string;
               ignoreNotFound?: boolean;
-            },
+            }
           );
         }
 
@@ -225,7 +282,17 @@ server.setRequestHandler(
             input as {
               name: string;
               namespace: string;
-            },
+            }
+          );
+        }
+
+        case "describe_node": {
+          return await describeNode(
+            k8sManager,
+            input as {
+              name: string;
+              namespace: string;
+            }
           );
         }
 
@@ -236,7 +303,7 @@ server.setRequestHandler(
               apiVersion?: string;
               recursive?: boolean;
               output?: "plaintext" | "plaintext-openapiv2";
-            },
+            }
           );
         }
 
@@ -246,7 +313,7 @@ server.setRequestHandler(
             input as {
               namespace?: string;
               fieldSelector?: string;
-            },
+            }
           );
         }
 
@@ -264,7 +331,7 @@ server.setRequestHandler(
               timestamps?: boolean;
               pretty?: boolean;
               follow?: false;
-            },
+            }
           );
         }
 
@@ -276,7 +343,7 @@ server.setRequestHandler(
               repo: string;
               namespace: string;
               values?: Record<string, any>;
-            },
+            }
           );
         }
 
@@ -287,14 +354,14 @@ server.setRequestHandler(
               namespaced?: boolean;
               verbs?: string[];
               output?: "wide" | "name" | "no-headers";
-            },
+            }
           );
         }
 
         case "list_deployments": {
           return await listDeployments(
             k8sManager,
-            input as { namespace?: string },
+            input as { namespace?: string }
           );
         }
 
@@ -328,15 +395,33 @@ server.setRequestHandler(
         case "list_services": {
           return await listServices(
             k8sManager,
-            input as { namespace?: string },
+            input as { namespace?: string }
           );
         }
 
         case "list_cronjobs": {
           return await listCronJobs(
             k8sManager,
-            input as { namespace?: string },
+            input as { namespace?: string }
           );
+        }
+
+        case "list_contexts": {
+          return await listContexts(
+            k8sManager,
+            input as { showCurrent?: boolean }
+          );
+        }
+
+        case "get_current_context": {
+          return await getCurrentContext(
+            k8sManager,
+            input as { detailed?: boolean }
+          );
+        }
+
+        case "set_current_context": {
+          return await setCurrentContext(k8sManager, input as { name: string });
         }
 
         case "describe_cronjob": {
@@ -345,7 +430,7 @@ server.setRequestHandler(
             input as {
               name: string;
               namespace: string;
-            },
+            }
           );
         }
 
@@ -355,7 +440,7 @@ server.setRequestHandler(
             input as {
               namespace: string;
               cronJobName?: string;
-            },
+            }
           );
         }
 
@@ -367,7 +452,7 @@ server.setRequestHandler(
               namespace: string;
               tail?: number;
               timestamps?: boolean;
-            },
+            }
           );
         }
 
@@ -376,7 +461,7 @@ server.setRequestHandler(
             input as {
               name: string;
               namespace: string;
-            },
+            }
           );
         }
 
@@ -388,7 +473,7 @@ server.setRequestHandler(
               repo: string;
               namespace: string;
               values?: Record<string, any>;
-            },
+            }
           );
         }
 
@@ -400,7 +485,7 @@ server.setRequestHandler(
               resourceName: string;
               localPort: number;
               targetPort: number;
-            },
+            }
           );
         }
 
@@ -409,7 +494,7 @@ server.setRequestHandler(
             k8sManager,
             input as {
               id: string;
-            },
+            }
           );
         }
 
@@ -419,7 +504,7 @@ server.setRequestHandler(
             input as {
               name: string;
               ignoreNotFound?: boolean;
-            },
+            }
           );
         }
 
@@ -430,7 +515,7 @@ server.setRequestHandler(
               name: string;
               namespace: string;
               ignoreNotFound?: boolean;
-            },
+            }
           );
         }
 
@@ -444,17 +529,29 @@ server.setRequestHandler(
               replicas?: number;
               ports?: number[];
               customConfig?: any;
-            },
+            }
           );
         }
-
+        case "update_deployment": {
+          return await updateDeployment(
+            k8sManager,
+            input as {
+              name: string;
+              namespace: string;
+              template: string;
+              containerName?: string;
+              replicas?: number;
+              customConfig?: any;
+            }
+          );
+        }
         case "describe_deployment": {
           return await describeDeployment(
             k8sManager,
             input as {
               name: string;
               namespace: string;
-            },
+            }
           );
         }
 
@@ -465,7 +562,7 @@ server.setRequestHandler(
               name: string;
               namespace: string;
               replicas: number;
-            },
+            }
           );
         }
 
@@ -476,7 +573,97 @@ server.setRequestHandler(
               name: string;
               namespace: string;
               data: Record<string, string>;
-            },
+            }
+          );
+        }
+
+        case "get_configmap": {
+          return  await getConfigMap(
+            k8sManager,
+            input as {
+              name: string;
+              namespace: string;
+            }
+          );
+        }
+
+        case "update_configmap": {
+          return await updateConfigMap(
+            k8sManager,
+            input as {
+              name: string;
+              namespace: string;
+              data: Record<string, string>;
+            }
+          );
+        }
+
+        case "delete_configmap": {
+          return await deleteConfigMap(
+            k8sManager,
+            input as {
+              name: string;
+              namespace: string;
+            }
+          );
+        }
+
+        case "create_service": {
+          return await createService(
+            k8sManager,
+            input as {
+              name: string;
+              namespace?: string;
+              type?: "ClusterIP" | "NodePort" | "LoadBalancer";
+              selector?: Record<string, string>;
+              ports: Array<{
+                port: number;
+                targetPort?: number;
+                protocol?: string;
+                name?: string;
+                nodePort?: number;
+              }>;
+            }
+          );
+        }
+
+        case "update_service": {
+          return await updateService(
+            k8sManager,
+            input as {
+              name: string;
+              namespace: string;
+              type?: "ClusterIP" | "NodePort" | "LoadBalancer";
+              selector?: Record<string, string>;
+              ports?: Array<{
+                port: number;
+                targetPort?: number;
+                protocol?: string;
+                name?: string;
+                nodePort?: number;
+              }>;
+            }
+          );
+        }
+
+        case "delete_service": {
+          return await deleteService(
+            k8sManager,
+            input as {
+              name: string;
+              namespace?: string;
+              ignoreNotFound?: boolean;
+            }
+          );
+        }
+
+        case "describe_service": {
+          return await describeService(
+            k8sManager,
+            input as {
+              name: string;
+              namespace?: string;
+            }
           );
         }
 
@@ -491,21 +678,21 @@ server.setRequestHandler(
       if (error instanceof McpError) throw error;
       throw new McpError(
         ErrorCode.InternalError,
-        `Tool execution failed: ${error}`,
+        `Tool execution failed: ${error}`
       );
     }
-  },
+  }
 );
 
 // Resources handlers
 const resourceHandlers = getResourceHandlers(k8sManager);
 server.setRequestHandler(
   ListResourcesRequestSchema,
-  resourceHandlers.listResources,
+  resourceHandlers.listResources
 );
 server.setRequestHandler(
   ReadResourceRequestSchema,
-  resourceHandlers.readResource,
+  resourceHandlers.readResource
 );
 
 if (process.env.TRANSPORT == "SSE") {
@@ -524,3 +711,5 @@ if (process.env.TRANSPORT == "SSE") {
     process.exit(0);
   });
 });
+
+export { allTools, destructiveTools };

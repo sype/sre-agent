@@ -19,7 +19,7 @@ export function startSSEServer(server: Server) {
 
   app.post("/messages", (req, res) => {
     const transport = transports.find(
-      (t) => t.sessionId === req.query.sessionId,
+      (t) => t.sessionId === req.query.sessionId
     );
 
     if (transport) {
@@ -35,6 +35,6 @@ export function startSSEServer(server: Server) {
   const port = process.env.PORT || 3001;
   app.listen(port);
   logger.info(
-    `mcp-kubernetes-server is listening on port ${port}\nUse the following url to connect to the server:\nhttp://localhost:${port}/sse`,
+    `mcp-kubernetes-server is listening on port ${port}\nUse the following url to connect to the server:\n\http://localhost:${port}/sse`
   );
 }
