@@ -14,6 +14,8 @@ from mcp.types import Tool
 
 from .logger import logger
 
+DEFAULT_QUERY_TIMEOUT = 300
+
 
 def _validate_fields(self: DataclassInstance) -> None:
     for config in fields(self):
@@ -64,7 +66,9 @@ class ClientConfig:
     model: str = "claude-3-7-sonnet-latest"
     max_tokens: int = 1000
     max_tool_retries: int = 3
-    query_timeout: int = int(os.getenv("QUERY_TIMEOUT", "300"))
+    query_timeout: int = int(
+        os.getenv("QUERY_TIMEOUT", DEFAULT_QUERY_TIMEOUT) or DEFAULT_QUERY_TIMEOUT
+    )
 
     def __post_init__(self) -> None:
         """A post-constructor method for the dataclass."""
