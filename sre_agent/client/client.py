@@ -24,20 +24,12 @@ from .utils.schemas import ClientConfig, MCPServer, ServerSession
 
 load_dotenv()  # load environment variables from .env
 
+PORT = 3001
+
 
 @lru_cache
 def _get_client_config() -> ClientConfig:
     return ClientConfig()
-
-
-PROMPT = """I have an error with my application, can you check the logs for the
-{service} service, I only want you to check the pods logs, look up only the 100 most
-recent logs. Feel free to scroll up until you find relevant errors that contain
-reference to a file, once you have these errors and the file name, get the file
-contents of the path src for the repository microservices-demo in the organisation
-fuzzylabs. Keep listing the directories until you find the file name and then get the
-contents of the file. Once you have diagnosed the error please report this to the
-following slack channel: {channel_id}."""
 
 
 class MCPClient:
@@ -46,7 +38,7 @@ class MCPClient:
     def __init__(self) -> None:
         """Initialise the MCP client and set up the Anthropic API client."""
         self.anthropic = Anthropic()
-        self.sessions: dict[str, ServerSession] = {}
+        self.sessions: dict[MCPServer, ServerSession] = {}
 
     async def __aenter__(self) -> "MCPClient":
         """Set up AsyncExitStack when entering the context manager."""
@@ -65,8 +57,9 @@ class MCPClient:
         logger.debug("Exiting MCP client context")
         await self.exit_stack.__aexit__(exc_type, exc_val, exc_tb)
 
-    async def connect_to_sse_server(self, server_url: str) -> None:
+    async def connect_to_sse_server(self, service: MCPServer) -> None:
         """Connect to an MCP server running with SSE transport."""
+        server_url = f"http://{service}:{PORT}/sse"
         logger.info(f"Connecting to SSE server: {server_url}")
 
         # Create and enter the SSE client context
@@ -89,7 +82,7 @@ class MCPClient:
             f"Connected to {server_url} with tools: {[tool.name for tool in tools]}"
         )
 
-        self.sessions[server_url] = ServerSession(tools=tools, session=session)
+        self.sessions[service] = ServerSession(tools=tools, session=session)
 
     def _convert_tool_result_to_text_blocks(
         self, result: str | list[TextContent]
@@ -136,11 +129,25 @@ class MCPClient:
                     return messages
         return messages
 
+    async def _get_prompt(self, service: str, channel_id: str) -> str:
+        """A helper method for retrieving the prompt from the prompt server."""
+        prompt = await self.sessions[MCPServer.PROMPT].session.get_prompt(
+            "diagnose", arguments={"service": service, "channel_id": channel_id}
+        )
+
+        if isinstance(prompt.messages[0].content, TextContent):
+            return prompt.messages[0].content.text
+        else:
+            raise TypeError(
+                f"{type(prompt.messages[0].content)} is invalid for this agent."
+            )
+
     async def process_query(  # noqa: C901, PLR0912, PLR0915
-        self, query: str
+        self, service: str, channel_id: str
     ) -> dict[str, Any]:
         """Process a query using Claude and available tools."""
-        logger.info(f"Processing query: {query[:50]}...")
+        query = await self._get_prompt(service, channel_id)
+        logger.info(f"Processing query: {query}...")
         start_time = time.perf_counter()
 
         messages = [
@@ -240,7 +247,9 @@ class MCPClient:
                                     f"Tool {tool_name} call took "
                                     f"{tool_duration:.2f} seconds"
                                 )
+
                                 result_content = cast(str, result.content)
+                                logger.debug(result_content)
                                 tool_retries = 0
 
                                 # This is a special case. We want to exit immediately
@@ -283,9 +292,9 @@ class MCPClient:
                             ),
                         )
                     )
-
         total_duration = time.perf_counter() - start_time
         logger.info(f"Total process_query execution took {total_duration:.2f} seconds")
+
         logger.info("Query processing completed")
         return {
             "response": "\n".join(final_text),
@@ -308,12 +317,11 @@ app: FastAPI = FastAPI(
 
 
 # Background task to run the diagnosis and post back to Slack
-async def run_diagnosis_and_post(service: str, prompt: str) -> None:
+async def run_diagnosis_and_post(service: str) -> None:
     """Run diagnosis for a service and post results back to Slack.
 
     Args:
         service: The name of the service to diagnose.
-        prompt: The prompt template to use for the diagnosis.
     """
     timeout = _get_client_config().query_timeout
     try:
@@ -321,14 +329,10 @@ async def run_diagnosis_and_post(service: str, prompt: str) -> None:
         async def _run_diagnosis() -> dict[str, Any]:
             async with MCPClient() as client:
                 for server in MCPServer:
-                    await client.connect_to_sse_server(
-                        server_url=f"http://{server}:3001/sse"
-                    )
+                    await client.connect_to_sse_server(service=server)
 
                 result = await client.process_query(
-                    prompt.format(
-                        service=service, channel_id=_get_client_config().channel_id
-                    )
+                    service=service, channel_id=_get_client_config().channel_id
                 )
 
                 logger.info(
@@ -358,7 +362,6 @@ async def run_diagnosis_and_post(service: str, prompt: str) -> None:
 async def diagnose(
     request: Request,
     background_tasks: BackgroundTasks,
-    prompt: str = PROMPT,
     authorisation: None = Depends(is_request_valid),
 ) -> JSONResponse:
     """Handle incoming Slack slash command requests for service diagnosis.
@@ -366,7 +369,6 @@ async def diagnose(
     Args:
         request: The FastAPI request object containing form data.
         background_tasks: FastAPI background tasks handler.
-        prompt: The prompt template to use for diagnosis. Defaults to PROMPT.
         authorisation: Authorization check result from is_request_valid dependency.
 
     Returns:
@@ -380,7 +382,7 @@ async def diagnose(
     logger.info(f"Received diagnose request for service: {service}")
 
     # Run diagnosis in the background
-    background_tasks.add_task(run_diagnosis_and_post, service, prompt)
+    background_tasks.add_task(run_diagnosis_and_post, service)
 
     return JSONResponse(
         {
