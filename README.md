@@ -81,6 +81,19 @@ docker compose up
 - [Docker](https://docs.docker.com/get-docker/)
 - [npx](https://docs.npmjs.com/cli/v8/commands/npx)
 
+### Prompt Service
+
+A prompt service containing a `diagnose` endpoint for triggering the agent to diagnose an issue. The `diagnose` prompt accepts a single argument, `service` which is the service that is failing.
+
+You must add a `CHANNEL_ID` environment variable to a `.env` file in the root of the project. This is the channel ID of the channel that you want to send messages to. For help on how to find the channel ID to send messages to, see [this link](https://help.socialintents.com/article/148-how-to-find-your-slack-team-id-and-slack-channel-id).
+
+To add the prompt service to the Claude config, perform the following command:
+
+```bash
+cd sre_agent/servers/prompt_server
+uv run mcp install prompt_server.py
+```
+
 ### [Slack](sre_agent/servers/slack/README.md)
 
 A slack agent for acting on behalf of an `sre-agent` Slack bot using the [Slack MCP server](https://github.com/modelcontextprotocol/servers/tree/main/src/slack).
