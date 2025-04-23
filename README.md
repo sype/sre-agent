@@ -28,20 +28,27 @@ curl -X POST http://localhost:8003/diagnose \
 ### Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/)
-- A `.env` file sitting at root containing the following:
-    - `SLACK_BOT_TOKEN`: The token for the `sre-agent` Slack bot.
-    - `SLACK_TEAM_ID`: The ID of the team to send responses to.
-    - `CHANNEL_ID`: The Slack channel ID to send responses to.
-    - `GITHUB_PERSONAL_ACCESS_TOKEN`: A personal access token for reading files from Github.
-    - `ANTHROPIC_API_KEY`: An Anthropic API key for making tool requests.
-    - `DEV_BEARER_TOKEN`: A password for developers to directly invoke the agent through the `/diagnose` endpoint.
-    - `SLACK_SIGNING_SECRET`: The signing secret for the Slack `sre-agent`.
-    - `TOOLS`: `'["list_pods", "get_logs", "get_file_contents", "slack_post_message"]'`
-    - `QUERY_TIMEOUT`: The maximum duration you wish to allow the agent to diagnose the issue.
-    - `TARGET_EKS_CLUSTER_NAME`:  The name of the AWS EKS cluster that hosts the application that you want the agent to diagnose.
-    - `AWS_REGION`: The AWS region that hosts your target EKS cluster.
-    - `AWS_ACCOUNT_ID` (Optional): The AWS account ID that stores the images. Only required if pulling images from ECR.
+- A configured `.env` file in the project root directory. See the [Environment Variables](#environment-variables) section below for details.
 - An application deployed in AWS on Kubernetes for the agent to interact with.
+
+### Environment Variables
+
+This project requires several environment variables for configuration. A template file, `.env.example`, is provided in the root directory as a reference.
+
+Create a file named `.env` in the project root and add the following variables:
+
+*   `SLACK_BOT_TOKEN`: The token for the `sre-agent` Slack bot.
+*   `SLACK_TEAM_ID`: The ID of the Slack team where the agent operates.
+*   `CHANNEL_ID`: The specific Slack channel ID for the agent's responses.
+*   `GITHUB_PERSONAL_ACCESS_TOKEN`: A GitHub personal access token with permissions to read relevant files.
+*   `ANTHROPIC_API_KEY`: An API key for Anthropic, used for processing tool requests.
+*   `DEV_BEARER_TOKEN`: A bearer token (password) for developers to directly invoke the agent via the `/diagnose` endpoint.
+*   `SLACK_SIGNING_SECRET`: The signing secret associated with the Slack `sre-agent` application.
+*   `TOOLS`: A JSON string array listing the enabled tools. Example: `'["list_pods", "get_logs", "get_file_contents", "slack_post_message"]'`
+*   `QUERY_TIMEOUT`: The maximum time (in seconds) allowed for the agent to diagnose an issue. (Default: `300`)
+*   `TARGET_EKS_CLUSTER_NAME`: The name of the target AWS EKS cluster the agent will interact with.
+*   `AWS_REGION`: The AWS region where the target EKS cluster is located.
+*   `AWS_ACCOUNT_ID` (Optional): The AWS account ID where container images are stored. Required only if pulling images from AWS ECR.
 
 <details>
 <summary>Deploy with ECR images</summary>
