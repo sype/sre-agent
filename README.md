@@ -14,7 +14,7 @@ We currently support two deployment methods for the MCP servers and client, one 
 
 See the [kubernetes-deployment.md](/docs/kubernetes-deployment.md) page for instructions on how to deploy the Agent to EKS.
 
-## Deploy Agent locally using Docker Compose
+## Deploy Agent Locally Using Docker Compose
 
 The fully orchestrated SRE Agent can be deployed with Docker Compose which spins up all of the required servers (Slack, Github, and K8s MCP servers) and an orchestration service which is a proxy between the LLM and the servers, this is the client in the context of MCP. Once the agent has been spun up you can trigger the SRE agent with the following request:
 
@@ -30,20 +30,22 @@ curl -X POST http://localhost:8003/diagnose \
 - [Docker](https://docs.docker.com/get-docker/)
 - A configured `.env` file in the project root directory. See the [Environment Variables](#environment-variables) section below for details.
 - An application deployed in AWS on Kubernetes for the agent to interact with.
+- A Slackbot created inside of your Slack account. See [Create Slackbot](https://docs.slack.dev/quickstart) to see how to create a Slackbot.
 
 ### Environment Variables
 
-This project requires several environment variables for configuration. A template file, `.env.example`, is provided in the root directory as a reference.
+This project requires several environment variables for configuration. A template file, `.env.example` [link here](/.env.example), is provided in the root directory as a reference.
 
 Create a file named `.env` in the project root and add the following variables:
 
+
 *   `SLACK_BOT_TOKEN`: The token for the `sre-agent` Slack bot.
-*   `SLACK_TEAM_ID`: The ID of the Slack team where the agent operates.
-*   `CHANNEL_ID`: The specific Slack channel ID for the agent's responses.
+*   `SLACK_TEAM_ID`: The ID of the Slack team where the agent operates. See [here](https://help.socialintents.com/article/148-how-to-find-your-slack-team-id-and-slack-channel-id) for guide on how to find this.
+*   `CHANNEL_ID`: The specific Slack channel ID for the agent's responses. See [here](https://help.socialintents.com/article/148-how-to-find-your-slack-team-id-and-slack-channel-id) for guide on how to find this.
+*   `SLACK_SIGNING_SECRET`: The signing secret associated with the Slack `sre-agent` application.
 *   `GITHUB_PERSONAL_ACCESS_TOKEN`: A GitHub personal access token with permissions to read relevant files.
 *   `ANTHROPIC_API_KEY`: An API key for Anthropic, used for processing tool requests.
-*   `DEV_BEARER_TOKEN`: A bearer token (password) for developers to directly invoke the agent via the `/diagnose` endpoint.
-*   `SLACK_SIGNING_SECRET`: The signing secret associated with the Slack `sre-agent` application.
+*   `DEV_BEARER_TOKEN`: A bearer token (password) for developers to create to directly invoke the agent via the `/diagnose` endpoint.
 *   `TOOLS`: A JSON string array listing the enabled tools. Example: `'["list_pods", "get_logs", "get_file_contents", "slack_post_message"]'`
 *   `QUERY_TIMEOUT`: The maximum time (in seconds) allowed for the agent to diagnose an issue. (Default: `300`)
 *   `TARGET_EKS_CLUSTER_NAME`: The name of the target AWS EKS cluster the agent will interact with.
@@ -288,7 +290,7 @@ docker build -t mcp/k8s .
 ```
 </details>
 
-# &#127939; How do I get started (Development)?
+# &#127939; How Do I get Started (Development)?
 
 ## Prerequisites
 
