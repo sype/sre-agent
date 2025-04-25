@@ -1,5 +1,8 @@
 # SRE Agent Terraform Configuration
 
+> [!WARNING]
+> This Terraform configuration is not production-ready. It provides the bare minimum infrastructure required to deploy the SRE Agent as a proof of concept. For production deployments, additional security considerations, high availability configurations, and proper secrets management should be implemented.
+
 This directory contains Terraform configuration to deploy the infrastructure for the SRE agent to AWS.
 
 ## Infrastructure Components
