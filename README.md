@@ -14,7 +14,7 @@ SRE agent is an AI agent that can monitor application and infrastructure logs, d
 
 To gain a better understanding of best practices, costs, security and performance of AI agents in production systems, we wanted to create and share an example through open-source development. See our [Production Journey Page](/docs/production-journey.md) to see how we took the deployment of the agent and MCP servers from local to Kubernetes and our [Agent Architecture Page](/docs/agent-architecture.md) for more information on how our client and services are connected and used.
 
-Please feel free to follow along and contribute to this repository!
+Please feel free to follow along and [contribute](CONTRIBUTING.md) to this repository!
 
 ## Features
 - Debugging issues - finds the root cause of application and system errors
@@ -31,13 +31,13 @@ To run this demo, you'll need an application deployed on Kubernetes. If you don'
 
 ![ezgif com-speed](https://github.com/user-attachments/assets/42d4abc0-7df4-4062-a971-c5b0ddf112c9)
 
-# 🔧 Prerequisites
+# Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/)
 - A configured `.env` file in the project root directory. See the [Environment Variables](#environment-variables) section below for details.
 - An application deployed in AWS on Kubernetes for the agent to interact with.
 
-# 🏃 How do I get started?
+# How do I get started?
 
 We currently support two deployment methods for the MCP servers and client, one [locally](#deploy-agent-locally-using-docker-compose), and one on [AWS](#deploy-agent-on-amazon-elastic-kubernetes-services-eks).
 
@@ -63,7 +63,7 @@ To connect your agent to EKS:
 
 The file should look something like this:
 ```bash
-[1233456789_AdministratorAccess]
+[1233456789_AgentAccessRole]
 aws_access_key_id=ABCDEFG12345
 aws_secret_access_key=abcdefg123456789
 aws_session_token=abcdefg123456789....=
