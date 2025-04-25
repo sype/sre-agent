@@ -234,3 +234,9 @@ $RECYCLE.BIN/
 *.lnk
 
 *node_modules
+
+# Terraform
+*.tfvars
+.terraform
+*.tfstate
+*.tfstate.backup

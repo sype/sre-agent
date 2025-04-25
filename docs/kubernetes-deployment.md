@@ -23,6 +23,8 @@ This page assumes you have an EKS cluster set-up including:
    - Amazon VPC CNI
    - kube-proxy
 
+You can use the Terraform configuration to deploy the EKS cluster with the required add-ons and set-up the IAM roles and policies. See the [Terraform README](/terraform/README.md) for more details.
+
 ## Environment variables
 
 To avoid committing our AWS account-ID and region, we use a separate package, `envsubst` to substitute variables into the Kubernetes manifests as this is not directly supported.
