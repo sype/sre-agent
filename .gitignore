@@ -239,4 +239,4 @@ $RECYCLE.BIN/
 *.tfvars
 .terraform
 *.tfstate
-*.tfstate.backup
+*.tfstate.*

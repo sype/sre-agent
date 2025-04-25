@@ -52,23 +52,7 @@ output "ecr_repository_urls" {
   value       = { for repo in var.ecr_repositories : repo => "${var.aws_account_id}.dkr.ecr.${var.aws_region}.amazonaws.com/${repo}" }
 }
 
-# ELB outputs
-output "elb_id" {
-  description = "The ID of the ELB"
-  value       = module.elb.elb_id
+output "mcp_access_role_name" {
+  description = "The name of the MCP access role"
+  value       = aws_iam_role.mcp_access_role.name
 }
-
-output "elb_name" {
-  description = "The name of the ELB"
-  value       = module.elb.elb_name
-}
-
-output "elb_dns_name" {
-  description = "The DNS name of the ELB"
-  value       = module.elb.elb_dns_name
-}
-
-output "elb_zone_id" {
-  description = "The canonical hosted zone ID of the ELB"
-  value       = module.elb.elb_zone_id
-} 

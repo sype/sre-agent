@@ -1,6 +1,6 @@
 # Create the MCP-access-role
 resource "aws_iam_role" "mcp_access_role" {
-  name = "MCP-access-role"
+  name = "${var.cluster_name}-MCP-access-role"
   
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -22,14 +22,14 @@ resource "aws_iam_role" "mcp_access_role" {
   })
 
   tags = {
-    Name = "MCP-access-role"
+    Name = "${var.cluster_name}-MCP-access-role"
   }
 }
 
 # Create policy for the MCP-access-role to access the target EKS cluster
 resource "aws_iam_policy" "mcp_access_policy" {
-  name        = "mcp-access-policy"
-  description = "Policy for MCP-access-role to access the target EKS cluster"
+  name        = "${var.cluster_name}-mcp-access-policy"
+  description = "Policy for ${var.cluster_name}-MCP-access-role to access the target EKS cluster"
   
   policy = jsonencode({
     Version = "2012-10-17"
@@ -49,33 +49,31 @@ resource "aws_iam_role_policy_attachment" "mcp_access_policy_attachment" {
   policy_arn = aws_iam_policy.mcp_access_policy.arn
 }
 
-# Create an IAM user group for SRE agent access
-resource "aws_iam_group" "sre_agent_group" {
-  name = "sre-agent"
+# Access entry for the target cluster
+resource "aws_eks_access_entry" "target_cluster_mcp_access" {
+  cluster_name  = var.target_cluster_name
+  principal_arn = aws_iam_role.mcp_access_role.arn
+  user_name     = "${aws_iam_role.mcp_access_role.arn}/{{SessionName}}"
 }
 
-# Create a policy for the SRE agent group
-resource "aws_iam_policy" "sre_agent_policy" {
-  name        = "sre-agent-policy"
-  description = "Policy for SRE agent to access EKS clusters"
+# Associate AmazonEKSAdminViewPolicy with the access entry
+resource "aws_eks_access_policy_association" "target_cluster_admin_view_policy" {
+  cluster_name  = var.target_cluster_name
+  principal_arn = aws_iam_role.mcp_access_role.arn
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSAdminViewPolicy"
   
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow"
-        Action   = [
-          "eks:DescribeCluster",
-          "eks:ListClusters"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
+  access_scope {
+    type = "cluster"
+  }
 }
 
-# Attach the policy to the group
-resource "aws_iam_group_policy_attachment" "sre_agent_policy_attachment" {
-  group      = aws_iam_group.sre_agent_group.name
-  policy_arn = aws_iam_policy.sre_agent_policy.arn
+# Associate AmazonEKSViewPolicy with the access entry
+resource "aws_eks_access_policy_association" "target_cluster_view_policy" {
+  cluster_name  = var.target_cluster_name
+  principal_arn = aws_iam_role.mcp_access_role.arn
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSViewPolicy"
+  
+  access_scope {
+    type = "cluster"
+  }
 } 

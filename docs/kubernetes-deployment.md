@@ -110,6 +110,12 @@ Authenticate with the MCP cluster:
 aws eks update-kubeconfig --region $AWS_REGION --name $MCP_CLUSTER_NAME
 ```
 
+If you created the cluster with the Terraform, the MCP access role name is set in the Terraform outputs. You can retrieve it with the following command:
+
+```
+export MCP_ACCESS_ROLE_NAME=$(terraform output -raw mcp_access_role_name)
+```
+
 We provide a bash script that runs the `kubectl apply` command for the manifests and this depends on the `envsubst` package to update the environment variables:
 
 ```
