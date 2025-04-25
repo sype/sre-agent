@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+source .env
 
 : "${AWS_ACCOUNT_ID:?Environment variable AWS_ACCOUNT_ID not set}"
 : "${AWS_REGION:?Environment variable AWS_REGION not set}"
@@ -30,3 +31,4 @@ build_and_push "github" "sre_agent/servers/github/Dockerfile" "sre_agent/"
 build_and_push "kubernetes" "sre_agent/servers/mcp-server-kubernetes/Dockerfile" "sre_agent/servers/mcp-server-kubernetes"
 build_and_push "slack" "sre_agent/servers/slack/Dockerfile" "sre_agent/"
 build_and_push "sre-orchestrator" "Dockerfile" "."
+build_and_push "prompt-server" "Dockerfile.prompt_server" "."
