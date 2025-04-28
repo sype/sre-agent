@@ -1,6 +1,6 @@
 # Create the MCP-access-role
 resource "aws_iam_role" "mcp_access_role" {
-  name = "${var.cluster_name}-MCP-access-role"
+  name = "${local.cluster_name}-MCP-access-role"
   
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -22,14 +22,14 @@ resource "aws_iam_role" "mcp_access_role" {
   })
 
   tags = {
-    Name = "${var.cluster_name}-MCP-access-role"
+    Name = "${local.cluster_name}-MCP-access-role"
   }
 }
 
 # Create policy for the MCP-access-role to access the target EKS cluster
 resource "aws_iam_policy" "mcp_access_policy" {
-  name        = "${var.cluster_name}-mcp-access-policy"
-  description = "Policy for ${var.cluster_name}-MCP-access-role to access the target EKS cluster"
+  name        = "${local.cluster_name}-mcp-access-policy"
+  description = "Policy for ${local.cluster_name}-MCP-access-role to access the target EKS cluster"
   
   policy = jsonencode({
     Version = "2012-10-17"

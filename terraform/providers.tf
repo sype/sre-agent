@@ -17,7 +17,7 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project   = "sre-agent"
+      Project   = var.name_prefix
       Terraform = "true"
     }
   }

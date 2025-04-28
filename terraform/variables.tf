@@ -1,3 +1,9 @@
+variable "name_prefix" {
+  description = "Prefix for all resource names"
+  type        = string
+  default     = "sre-agent"
+}
+
 variable "aws_region" {
   description = "AWS region to deploy resources"
   type        = string
@@ -7,13 +13,13 @@ variable "aws_region" {
 variable "vpc_name" {
   description = "Name for the VPC"
   type        = string
-  default     = "sre-agent-vpc"
+  default     = null
 }
 
 variable "cluster_name" {
   description = "Name for the EKS cluster"
   type        = string
-  default     = "sre-agent"
+  default     = null
 }
 
 variable "target_cluster_name" {
@@ -54,7 +60,7 @@ variable "eks_managed_node_groups" {
   type        = map(any)
   default     = {
     main = {
-      name         = "sre-agent-ng"
+      name         = null  # Will be set via locals
       min_size     = 1
       max_size     = 2
       desired_size = 1
@@ -72,4 +78,16 @@ variable "aws_account_id" {
 variable "cluster_admin_principal_arn" {
   description = "IAM principal ARN to provide admin access to the EKS cluster"
   type        = string
+}
+
+locals {
+  vpc_name     = coalesce(var.vpc_name, "${var.name_prefix}-vpc")
+  cluster_name = coalesce(var.cluster_name, var.name_prefix)
+  
+  # Set node group name based on name_prefix if not specified
+  eks_managed_node_groups = {
+    for key, group in var.eks_managed_node_groups : key => merge(group, {
+      name = "${var.name_prefix}-${key}-ng"
+    })
+  }
 }

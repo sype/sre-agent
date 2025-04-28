@@ -16,6 +16,7 @@ The Terraform configuration deploys the following AWS resources:
 - **IAM roles and policies** for cross-cluster access
 - **S3 bucket** for ELB access logs
 - **EKS Access Policy** allowing cluster admin access to specified IAM principal
+- **S3 bucket and DynamoDB table** for Terraform state management
 
 The configuration references an existing target EKS cluster that will be monitored by the SRE agent.
 
@@ -26,6 +27,30 @@ The configuration references an existing target EKS cluster that will be monitor
 - kubectl
 - Docker (for building and pushing images)
 - Existing target EKS cluster for monitoring
+
+## Setting Up Remote State Storage
+
+The Terraform configuration uses an S3 bucket and DynamoDB table for remote state storage. To set this up:
+
+1. **Initial Setup**
+   - Comment out the `backend "s3"` block in `backend.tf`
+   - This allows Terraform to create the S3 bucket and DynamoDB table
+
+2. **Create State Storage Resources**
+   ```bash
+   terraform init
+   terraform apply
+   ```
+   This will create the S3 bucket and DynamoDB table for state storage.
+
+3. **Migrate State to Remote Storage**
+   - Uncomment the `backend "s3"` block in `backend.tf`
+   - Run `terraform init` again
+   - When prompted, confirm that you want to migrate the state to the new backend
+
+4. **Verify State Migration**
+   - Run `terraform plan` to ensure everything is working correctly
+   - The state should now be stored in the S3 bucket
 
 ## Getting Started
 
