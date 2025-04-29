@@ -3,6 +3,9 @@
 > [!WARNING]
 > This Terraform configuration is not production-ready. It provides the bare minimum infrastructure required to deploy the SRE Agent as a proof of concept. For production deployments, additional security considerations, high availability configurations, and proper secrets management should be implemented.
 
+> [!NOTE]
+> This configuration assumes that the target EKS cluster is already created, and is in the same AWS account as the SRE Agent.
+
 This directory contains Terraform configuration to deploy the infrastructure for the SRE agent to AWS.
 
 ## Infrastructure Components

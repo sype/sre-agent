@@ -69,6 +69,7 @@ variable "eks_managed_node_groups" {
   }
 }
 
+# We assume that the SRE Agent is deployed in the same AWS account as the target EKS cluster
 variable "aws_account_id" {
   description = "AWS Account ID"
   type        = string
@@ -81,7 +82,7 @@ variable "cluster_admin_principal_arn" {
 }
 
 locals {
-  vpc_name     = coalesce(var.vpc_name, "${var.name_prefix}-vpc")
+  vpc_name     = coalesce(var.vpc_name, "${var.name_prefix}-deployment-vpc")
   cluster_name = coalesce(var.cluster_name, var.name_prefix)
   
   # Set node group name based on name_prefix if not specified

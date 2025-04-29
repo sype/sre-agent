@@ -236,7 +236,6 @@ $RECYCLE.BIN/
 *node_modules
 
 # Terraform
-*.tfvars
 .terraform
 *.tfstate
 *.tfstate.*
