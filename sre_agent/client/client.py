@@ -4,6 +4,7 @@ import time
 from asyncio import TimeoutError, wait_for
 from contextlib import AsyncExitStack
 from functools import lru_cache
+from http import HTTPStatus
 from typing import Annotated, Any, cast
 
 import requests
@@ -326,15 +327,25 @@ async def diagnose(
     text = text_data.strip() if isinstance(text_data, str) else ""
     service = text or "cartservice"
 
+    if service not in _get_client_config().services:
+        return JSONResponse(
+            status_code=HTTPStatus.BAD_REQUEST,
+            content={
+                "text": f"Service `{service}` is not supported. Supported services are"
+                f": {', '.join(_get_client_config().services)}.",
+            },
+        )
+
     logger.info(f"Received diagnose request for service: {service}")
 
     background_tasks.add_task(run_diagnosis_and_post, service)
 
     return JSONResponse(
-        {
+        status_code=HTTPStatus.OK,
+        content={
             "response_type": "ephemeral",
             "text": f"🔍 Running diagnosis for `{service}`...",
-        }
+        },
     )
 
 
