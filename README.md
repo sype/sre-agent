@@ -6,9 +6,11 @@
     <p>Open-source implementation for an Site Reliability Engineer (SRE) AI Agent.</p>
 </h3>
 
-# What does it do?
+## What does it do?
 
 SRE agent is an AI agent that can monitor application and infrastructure logs, diagnose issues, and report on diagnostics following an error in an application. Hook up your Kubernetes cluster, GitHub repository and Slack and let the agent summarise and diagnose issues to your team.
+
+This project contains all of the application code for the agent, e.g., the MCP client, MCP servers, and an LLM service.
 
 https://github.com/user-attachments/assets/5ef19428-d650-405d-ba88-848aeef58fef
 
@@ -25,6 +27,8 @@ Please feel free to follow along and [contribute](CONTRIBUTING.md) to this repos
 - Slack integration - report and update your team in Slack
 - Triggerable from anywhere with a diagnose endpoint
 
+---
+
 We use the Model Context Protocol (MCP) created by Anthropic to connect the LLM to the provided tools.
 
 This repository demonstrates how AI agents can accelerate your debugging process and reduce application downtime.
@@ -33,27 +37,19 @@ To run this demo, you'll need an application deployed on Kubernetes. If you don'
 
 ![ezgif com-speed](https://github.com/user-attachments/assets/42d4abc0-7df4-4062-a971-c5b0ddf112c9)
 
-# Prerequisites
+## Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/)
-- A configured `.env` file in the project root directory. See the [Environment Variables](#environment-variables) section below for details.
+- A configured `.env` file in the project root directory. See the [Credentials Setup](#credentials-setup) section below for details.
 - An application deployed in AWS on Kubernetes for the agent to interact with.
 
-# How do I get started?
+## How do I get started?
 
-We currently support two deployment methods for the MCP servers and client, one [locally](#deploy-agent-locally-using-docker-compose), and one on [AWS](#deploy-agent-on-amazon-elastic-kubernetes-services-eks).
-
-The easiest way to run the agent is to use Docker Compose locally.
-
-The fully orchestrated SRE Agent can be deployed with Docker Compose, which spins up all the required services — Slack, GitHub, the Kubernetes MCP servers, and an orchestration service that acts as a proxy between the LLM and the backend services. This orchestration service is the client in the context of MCP.
-
-For Terraform-based infrastructure deployment, see the [terraform README](/terraform/README.md). The Terraform configuration sets up all required AWS resources including EKS cluster with proper access policies. Note that this configuration is not production-ready and provides only the bare minimum infrastructure required for a proof of concept deployment.
-
-## Deploy Agent Locally using Docker Compose
+The fully orchestrated SRE Agent can be deployed locally with Docker Compose as part of this project, which spins up all the required services — Slack, GitHub, the Kubernetes MCP servers, and an orchestration service that acts as a proxy between the LLM and the backend services. This orchestration service is the client in the context of MCP.
 
 Before running the agent, there are a few things we need to set up.
 
-### 1. Giving the Agent Access to Your Kubernetes Cluster (i.e. the cluster where your application is running)
+#### 1. Giving the Agent Access to Your Kubernetes Cluster (i.e. the cluster where your application is running)
 
 Currently, the agent only supports applications running on EKS (Elastic Kubernetes Service).
 
@@ -81,7 +77,7 @@ aws_secret_access_key=abcdefg123456789
 aws_session_token=abcdefg123456789....=
 ```
 
-### 2. Credentials Setup
+#### 2. Credentials Setup
 
 This project requires several environment variables for configuration. A template file, `.env.example`, is provided in the root directory as a reference. Details for each variable can be found in [credentials](docs/credentials.md)
 
@@ -91,7 +87,7 @@ We have provided a helper setup script to help you set up the `.env` file. You c
 python credential_setup.py
 ```
 
-### 3. Running the agent
+#### 3. Running the agent
 
 To start the agent, simply run:
 ```bash
@@ -161,7 +157,7 @@ kubernetes-1     | }
 
 This means all the services — Slack, GitHub, the orchestrator, the prompt and the MCP servers have started successfully and are ready to handle requests.
 
-### 4. Using the agent
+#### 4. Using the agent
 
 Once the agent is up and running, you can trigger the SRE Agent by sending a request to the orchestrator service:
 
@@ -192,39 +188,11 @@ curl -X GET http://localhost:8003/health
 *   A `503 Service Unavailable` response indicates an issue, either with the orchestrator's initialisation or with one or more MCP server connections. The response body will contain details about the failure.
 </details>
 
-# Running the agent on AWS
+## Deployments
 
-## Deploy Agent on Amazon Elastic Kubernetes Services (EKS)
+In separate repositories we have provided deployment examples for the SRE agent and MCP servers.
 
-See the [kubernetes-deployment.md](/docs/kubernetes-deployment.md) page for instructions on how to deploy the Agent to EKS.
-
-### Prerequisites
-
-- [Docker](https://docs.docker.com/get-docker/)
-- A configured `values-secrets.yaml` file in the root of the [`charts/sre-agent`](charts/sre-agent) directory. See the template [`values-secrets.yaml.example`](charts/sre-agent/values-secrets.yaml.example) file for all required secrets.
-- An application deployed in AWS on Kubernetes for the agent to interact with.
-- A Slackbot created inside of your Slack account. See [Create Slackbot](https://docs.slack.dev/quickstart) to see how to create a Slackbot.
-
-## Security Tests
-
-Inside the [`tests`](tests) directory are a collection of [security tests](/tests/security_tests) that can be run to ensure defences against possible prompt-injection threats against the agent. Agentic systems can be vulnerable to prompt-injection attacks where an attacker can manipulate the input to the agent to perform unintended actions. These tests are designed to ensure that the agent is robust against such attacks.
-
-To run the security tests, first launch the agent using the `compose.tests.yaml` file:
-
-```bash
-docker compose -f compose.tests.yaml up --build
-```
-
-Then, in a separate terminal, run the security tests:
-```bash
-uv run pytest tests/security_tests
-```
-
-We are currently testing for the following vulnerabilities:
-- [X] Prompt Injection via `/diagnose` endpoint
-- [X] Prompt Injection via Kubernetes logs
-- [ ] Prompt Injection via application
-- [ ] Prompt Injection via GitHub files
+1. [EKS Deployment](https://github.com/fuzzylabs/sre-agent-deployment)
 
 ## Documentation
 
@@ -234,8 +202,10 @@ Documentation for this project can be found in the [docs](docs) folder. The foll
 * [ECR Setup Steps](docs/ecr-setup.md)
 * [Agent Architecture](docs/agent-architecture.md)
 * [Production Journey](docs/production-journey.md)
+* [Credentials](docs/credentials.md)
+* [Security Testing](docs/security-testing.md)
 
-# Acknowledgements + attribution
+## Acknowledgements + attribution
 
 We would like to thank:
 
