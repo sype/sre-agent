@@ -4,7 +4,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from llamafirewall import (  # type: ignore
+from llamafirewall import (
     LlamaFirewall,
     ScanDecision,
     ScanResult,
@@ -29,7 +29,7 @@ def load_models() -> None:
         os.path.join(os.environ["HF_HOME"], model_name.replace("/", "--"))
     )
 
-    model = AutoModelForSequenceClassification.from_pretrained(model_name)
+    model = AutoModelForSequenceClassification.from_pretrained(model_name)  # type: ignore[no-untyped-call]
     model.save_pretrained(model_path)
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)

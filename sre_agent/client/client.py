@@ -14,9 +14,15 @@ from fastapi.responses import JSONResponse
 from mcp import ClientSession
 from mcp.client.sse import sse_client
 from mcp.shared.exceptions import McpError
-from mcp.types import GetPromptResult, PromptMessage, TextContent
+from mcp.types import GetPromptResult, TextContent
+from shared.logger import logger  # type: ignore[import-not-found]
+from shared.schemas import (  # type: ignore[import-not-found]
+    Message,
+    MessageBlock,
+    TextBlock,
+    TextGenerationPayload,
+)
 from utils.auth import is_request_valid  # type: ignore
-from utils.logger import logger  # type: ignore
 from utils.schemas import ClientConfig, MCPServer, ServerSession  # type: ignore
 
 load_dotenv()
@@ -34,7 +40,7 @@ class MCPClient:
     """An MCP client for connecting to a server using SSE transport."""
 
     def __init__(self) -> None:
-        """Initialise the MCP client and set up the Anthropic API client."""
+        """Initialise the MCP client."""
         self.sessions: dict[MCPServer, ServerSession] = {}
         self.messages: list[dict[str, Any]] = []
         self.stop_reason: str | None = None
@@ -72,7 +78,11 @@ class MCPClient:
             "http://llama-firewall:8000/check",
             json={"content": text, "is_tool": is_tool},
             timeout=10,
-        ).json()
+        )
+
+        response.raise_for_status()
+
+        response = response.json()
 
         result, block = response["result"], cast(bool, response["block"])
 
@@ -88,18 +98,17 @@ class MCPClient:
         server_url = f"http://{service}:{PORT}/sse"
         logger.info(f"Connecting to SSE server: {server_url}")
 
-        # Create and enter the SSE client context
+        logger.info("Creating SSE client context")
         stream_ctx = sse_client(url=server_url)
         streams = await self.exit_stack.enter_async_context(stream_ctx)
 
-        # Create and enter the ClientSession context
+        logger.info("Creating MCP client session")
         session = ClientSession(*streams)
         session = await self.exit_stack.enter_async_context(session)
 
-        # Initialise the session
+        logger.info(f"Initialising session for {server_url}")
         await session.initialize()
 
-        # List available tools to verify connection
         logger.info(f"Initialised SSE client for {server_url}")
         logger.debug("Listing available tools")
         response = await session.list_tools()
@@ -110,7 +119,7 @@ class MCPClient:
 
         self.sessions[service] = ServerSession(tools=tools, session=session)
 
-    async def _get_prompt(self, service: str, channel_id: str) -> PromptMessage:
+    async def _get_prompt(self, service: str, channel_id: str) -> MessageBlock:
         """A helper method for retrieving the prompt from the prompt server."""
         prompt: GetPromptResult = await self.sessions[
             MCPServer.PROMPT
@@ -119,7 +128,10 @@ class MCPClient:
         )
 
         if isinstance(prompt.messages[0].content, TextContent):
-            return prompt.messages[0]
+            return MessageBlock(
+                role=prompt.messages[0].role,
+                content=[TextBlock(**prompt.messages[0].content.model_dump())],
+            )
         else:
             raise TypeError(
                 f"{type(prompt.messages[0].content)} is invalid for this agent."
@@ -133,7 +145,9 @@ class MCPClient:
         logger.info(f"Processing query: {query}...")
         start_time = time.perf_counter()
 
-        self.messages = [{"role": query.role, "content": [query.content.model_dump()]}]
+        _ = await self._run_firewall_check(str(query.content[0].model_dump()))
+
+        self.messages = [{"role": query.role, "content": query.content}]
 
         available_tools = []
 
@@ -147,8 +161,6 @@ class MCPClient:
             )
 
         final_text = []
-
-        _ = await self._run_firewall_check(str(query.content.model_dump()))
 
         # Track token usage
         total_input_tokens = 0
@@ -165,42 +177,48 @@ class MCPClient:
             logger.info("Sending request to Claude")
             claude_start_time = time.perf_counter()
 
-            payload = {"messages": self.messages, "tools": available_tools}
+            payload = TextGenerationPayload(
+                messages=self.messages, tools=available_tools
+            ).model_dump(mode="json")
 
             logger.debug(payload)
 
             response = requests.post(
                 "http://llm-server:8000/generate", json=payload, timeout=60
-            ).json()
+            )
 
-            logger.debug(response)
+            response.raise_for_status()
+
+            llm_response = Message(**response.json())
+
+            logger.debug(llm_response)
 
             claude_duration = time.perf_counter() - claude_start_time
             logger.info(f"Claude request took {claude_duration:.2f} seconds")
-            self.stop_reason = response["stop_reason"]
+            self.stop_reason = llm_response.stop_reason
 
             # Track token usage from this response
-            if response.get("usage"):
-                total_input_tokens += response["usage"]["input_tokens"]
-                total_output_tokens += response["usage"]["output_tokens"]
-                if response["usage"]["cache_creation_input_tokens"]:
-                    total_cache_creation_tokens += response["usage"][
-                        "cache_creation_input_tokens"
-                    ]
-                if response["usage"]["cache_read_input_tokens"]:
-                    total_cache_read_tokens += response["usage"][
-                        "cache_read_input_tokens"
-                    ]
+            if llm_response.usage:
+                total_input_tokens += llm_response.usage.input_tokens
+                total_output_tokens += llm_response.usage.output_tokens
+                if llm_response.usage.cache_creation_input_tokens:
+                    total_cache_creation_tokens += (
+                        llm_response.usage.cache_creation_input_tokens
+                    )
+                if llm_response.usage.cache_read_input_tokens:
+                    total_cache_read_tokens += (
+                        llm_response.usage.cache_read_input_tokens
+                    )
 
             assistant_message_content = []
 
-            for content in response["content"]:
-                if content["type"] == "text":
-                    final_text.append(content["text"])
-                    logger.debug(f"Claude response: {content['text']}")
-                elif content["type"] == "tool_use":
-                    tool_name = content["name"]
-                    tool_args = content["input"]
+            for content in llm_response.content:
+                if content.type == "text":
+                    final_text.append(content.text)
+                    logger.debug(f"Claude response: {content.text}")
+                elif content.type == "tool_use":
+                    tool_name = content.name
+                    tool_args = content.arguments
                     logger.info(f"Claude requested to use tool: {tool_name}")
 
                     if await self._run_firewall_check(
@@ -237,7 +255,7 @@ class MCPClient:
                                 error_msg = f"Tool '{tool_name}' failed with error: {str(e)}. Tool args were: {tool_args}. Check the arguments and try again fixing the error."  # noqa: E501
                                 logger.info(error_msg)
                                 result_content = [
-                                    TextContent(type="text", text=error_msg)
+                                    TextBlock(type="text", text=error_msg)
                                 ]
                                 is_error = True
                                 tool_retries += 1
@@ -263,9 +281,9 @@ class MCPClient:
                             "content": [
                                 {
                                     "type": "tool_result",
-                                    "tool_use_id": content["id"],
+                                    "tool_use_id": content.id,
                                     "content": [i.model_dump() for i in result_content],
-                                    "isError": is_error,
+                                    "is_error": is_error,
                                 }
                             ],
                         }
