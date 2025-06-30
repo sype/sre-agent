@@ -1,11 +1,14 @@
 """A collection of clients for performing text generation."""
 
+import os
 from abc import ABC, abstractmethod
 from typing import Any, cast
 
 from anthropic import Anthropic
 from anthropic.types import MessageParam as AnthropicMessageBlock
 from anthropic.types import ToolParam
+from google import genai
+from google.genai import types
 from pydantic import BaseModel
 from shared.logger import logger  # type: ignore
 from shared.schemas import (  # type: ignore
@@ -18,6 +21,8 @@ from shared.schemas import (  # type: ignore
 from utils.adapters import (  # type: ignore[import-not-found]
     AnthropicTextGenerationPayloadAdapter,
     AnthropicToMCPAdapter,
+    GeminiTextGenerationPayloadAdapter,
+    GeminiToMCPAdapter,
 )
 from utils.schemas import (  # type: ignore
     LLMSettings,
@@ -166,11 +171,60 @@ class OpenAIClient(BaseClient):
 
 
 class GeminiClient(BaseClient):
-    """A client for performing text generation using the Gemeni client."""
+    """A client for performing text generation using the Gemini client."""
+
+    def __init__(self, settings: LLMSettings = LLMSettings()) -> None:
+        """The constructor for the Gemini client."""
+        super().__init__(settings)
+        self.client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
     def generate(self, payload: TextGenerationPayload) -> Message:
         """A method for generating text using the Gemini API."""
-        raise NotImplementedError
+        adapter = GeminiTextGenerationPayloadAdapter(payload)
+
+        messages, tools = adapter.adapt()
+
+        if not self.settings.max_tokens:
+            raise ValueError("Max tokens configuration has not been set.")
+
+        response = self.client.models.generate_content(
+            model=self.settings.model,
+            contents=messages,
+            config=types.GenerateContentConfig(
+                tools=tools,
+                max_output_tokens=self.settings.max_tokens,
+            ),
+        )
+
+        if response.usage_metadata:
+            logger.info(
+                f"Token usage - Input: {response.usage_metadata.prompt_token_count}, "
+                f"Output: {response.usage_metadata.candidates_token_count}, "
+                f"Cache: {response.usage_metadata.cached_content_token_count}, "
+                f"Tools: {response.usage_metadata.tool_use_prompt_token_count}, "
+                f"Total: {response.usage_metadata.total_token_count}"
+            )
+
+        adapter = GeminiToMCPAdapter(response.candidates)
+        content = adapter.adapt()
+
+        return Message(
+            id=response.response_id or f"gemini_{hash(str(response))}",
+            model=response.model_version,
+            content=content,
+            role="assistant",
+            stop_reason=response.candidates[0].finish_reason
+            if response.candidates
+            else "end_turn",
+            usage=Usage(
+                input_tokens=response.usage_metadata.prompt_token_count,
+                output_tokens=response.usage_metadata.candidates_token_count,
+                cache_creation_input_tokens=None,
+                cache_read_input_tokens=response.usage_metadata.cached_content_token_count,
+            )
+            if response.usage_metadata
+            else None,
+        )
 
 
 class SelfHostedClient(BaseClient):

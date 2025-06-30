@@ -28,20 +28,56 @@ We've been writing blogs and sharing our learnings along the way. Check out our 
 
 > Powered by the [Model Context Protocol (MCP)](https://github.com/modelcontextprotocol) for seamless LLM-to-tool connectivity.
 
+## 🤖 Supported LLM Providers
+
+The SRE Agent supports multiple the following LLM providers:
+
+### Anthropic
+- **Models**: e.g. "claude-4-0-sonnet-latest"
+- **Setup**: Requires `ANTHROPIC_API_KEY`
+
+### Google Gemini
+- **Models**: e.g, "gemini-2.5-flash"
+- **Setup**: Requires `GEMINI_API_KEY`
+
+
 ## 🛠️ Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/)
-- A `.env` file in your project root ([see below](#credentials-setup))
-- An app deployed on AWS EKS (Elastic Kubernetes Service)
+- A `.env` file in your project root ([see below](#getting-started))
+- An app deployed on AWS EKS (Elastic Kubernetes Service) or GCP GKE (Google Kubernetes Engine)
 
 ## ⚡ Getting Started
 
-Ready to see the agent in action? Let's get you set up.
+Ready to see the agent in action? Our setup script will guide you through credential configuration, then you'll manually start the containers.
+
+### 🚀 Credential Setup
+
+Use our interactive setup script to configure your credentials:
+
+```bash
+python setup_credentials.py
+```
+
+The script will:
+- ✅ Auto-detect your platform (AWS/GCP) or let you choose
+- ✅ Guide you through credential setup with helpful prompts
+- ✅ Show current values and let you update them
+- ✅ Create your `.env` file automatically
+
+### 🔧 Setup Options
+
+**Quick start with platform selection:**
+```bash
+python setup_credentials.py --platform aws
+# or
+python setup_credentials.py --platform gcp
+```
+
 
 ### 1️⃣ Connect to Your Kubernetes Cluster
 
-> _Currently, we support EKS clusters._
-
+#### For AWS EKS:
 1. Go to your AWS access portal and grab your access keys:
    ![key](./docs/imgs/running_locally/access_key.png)
 2. Choose Option 2 and copy credentials into `~/.aws/credentials`:
@@ -54,22 +90,25 @@ Ready to see the agent in action? Let's get you set up.
    aws_session_token=abcdefg123456789....=
    ```
 
-### 2️⃣ Credentials Setup
-
-You'll need some environment variables. Use our template `.env.example` and the helper script:
-
+#### For GCP GKE:
+Set up your GCP credentials using the gcloud CLI:
 ```bash
-python credential_setup.py
+gcloud auth login
+gcloud config set project YOUR_PROJECT_ID
 ```
 
-More details: [credentials](docs/credentials.md)
+### 2️⃣ Start the Containers
 
-### 3️⃣ Fire Up the Agent
+After setting up your credentials, start the containers manually:
 
-Spin up all the services with Docker Compose:
-
+**For AWS:**
 ```bash
-docker compose up --build
+docker compose -f compose.aws.yaml up --build
+```
+
+**For GCP:**
+```bash
+docker compose -f compose.gcp.yaml up --build
 ```
 
 <details>
@@ -193,4 +232,4 @@ Big thanks to:
 Check out our blog posts for insights and updates:
 
 - [Bringing Agentic AI into the Real World](https://www.fuzzylabs.ai/blog-post/bringing-agentic-ai-into-the-real-world)
-- [How We’re Building an Autonomous SRE with FastMCP](https://www.fuzzylabs.ai/blog-post/how-were-building-an-autonomous-sre-with-fastmcp)
+- [How We're Building an Autonomous SRE with FastMCP](https://www.fuzzylabs.ai/blog-post/how-were-building-an-autonomous-sre-with-fastmcp)
