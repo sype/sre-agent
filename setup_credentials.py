@@ -82,6 +82,10 @@ def get_credential_config(platform: str) -> dict[str, dict[str, Any]]:
             "prompt": "Enter your Github project root directory: ",
             "mask_value": False,
         },
+        "KUBECONFIG_PATH": {
+            "prompt": "Enter absolute path to your kubeconfig (or leave blank to keep)",
+            "mask_value": False,
+        },
         "PROVIDER": {"prompt": "Enter your LLM provider name: ", "mask_value": False},
         "MODEL": {"prompt": "Enter your LLM model name: ", "mask_value": False},
         "GEMINI_API_KEY": {"prompt": "Enter your Gemini API Key: ", "mask_value": True},

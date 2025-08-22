@@ -1,6 +1,6 @@
 """A server for making requests to an LLM."""
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 from typing import Any, cast
 
@@ -27,12 +27,13 @@ load_dotenv()
 STATE: dict[str, BaseClient] = {}
 
 
-LLM_CLIENT_MAP: dict[Provider, BaseClient] = {
-    Provider.ANTHROPIC: AnthropicClient(),
-    Provider.MOCK: DummyClient(),
-    Provider.OPENAI: OpenAIClient(),
-    Provider.GEMINI: GeminiClient(),
-    Provider.SELF_HOSTED: SelfHostedClient(),
+# Lazily instantiate the selected provider to avoid requiring env for all providers
+LLM_CLIENT_FACTORY: dict[Provider, Callable[[], BaseClient]] = {
+    Provider.ANTHROPIC: lambda: AnthropicClient(),
+    Provider.MOCK: lambda: DummyClient(),
+    Provider.OPENAI: lambda: OpenAIClient(),
+    Provider.GEMINI: lambda: GeminiClient(),
+    Provider.SELF_HOSTED: lambda: SelfHostedClient(),
 }
 
 
@@ -42,7 +43,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[Any, Any]:
 
     On start-up the application will establish an LLM function and settings.
     """
-    STATE["client"] = LLM_CLIENT_MAP.get(LLMSettings().provider, DummyClient())
+    selected_provider = LLMSettings().provider
+    factory = LLM_CLIENT_FACTORY.get(selected_provider, lambda: DummyClient())
+    STATE["client"] = factory()
 
     if STATE["client"] is None:
         raise ValueError(

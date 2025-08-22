@@ -7,7 +7,11 @@ function log_error_and_exit {
   exit 1
 }
 
-if [[ -v AWS_REGION ]]; then
+if [[ -n "${KUBECONFIG:-}" && -f "$KUBECONFIG" ]]; then
+  echo "🔑 Using provided kubeconfig at: $KUBECONFIG"
+elif [[ -f "$HOME/.kube/config" ]]; then
+  echo "🔑 Using default kubeconfig at: $HOME/.kube/config"
+elif [[ -v AWS_REGION ]]; then
   echo "🔧 Updating kubeconfig for EKS cluster..."
   if ! output=$(aws eks update-kubeconfig --region $AWS_REGION --name $TARGET_EKS_CLUSTER_NAME 2>&1); then
     log_error_and_exit "$output"
@@ -18,7 +22,7 @@ elif [[ -v CLOUDSDK_COMPUTE_REGION ]]; then
     log_error_and_exit "$output"
   fi
 else
-  echo "❌ No supported environment variables not found"
+  echo "❌ No kubeconfig provided and no supported cloud env variables found"
   exit 1
 fi
 

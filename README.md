@@ -366,6 +366,21 @@ npm run build && npm run watch
 
 </details>
 
+### Bare-metal/local kubeconfig
+
+If your cluster is remote, import its kubeconfig path into `.env` so the Kubernetes MCP server can use it directly:
+
+```bash
+scripts/kubeconfig-helper.sh import /path/to/kubeconfig
+```
+
+Then run the stack using the bare‑metal compose, pointing to your kubeconfig directly with `KUBECONFIG_PATH`:
+
+```bash
+export KUBECONFIG_PATH=/absolute/path/to/your/kubeconfig
+docker compose -f compose.baremetal.yaml up --build
+```
+
 ## 📚 Documentation
 
 Find all the docs you need in the [docs](docs) folder:
