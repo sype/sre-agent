@@ -89,6 +89,8 @@ services:
           create_host_path: true
     environment:
       - HF_TOKEN=${HF_TOKEN}
+    ports:
+      - "8000:8000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s

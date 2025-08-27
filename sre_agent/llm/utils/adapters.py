@@ -12,7 +12,8 @@ from google.genai import _mcp_utils
 from google.genai.types import Content as GeminiContent
 from google.genai.types import Part as GeminiPart
 from google.genai.types import Tool as GeminiTool
-from shared.schemas import (  # type: ignore
+
+from sre_agent.shared.schemas import (
     Content,
     TextBlock,
     TextGenerationPayload,
@@ -123,10 +124,11 @@ class AnthropicTextGenerationPayloadAdapter(LLMTextGenerationPayloadAdapter):
         """Convert MCP types to Anthropic types."""
         processed_messages: list[AnthropicMessageBlock] = []
         for message in self.payload.messages:
-            processed_message = {"role": message.role, "content": []}
+            processed_message: dict[str, Any] = {"role": message.role, "content": []}
+            content_list: list[Any] = processed_message["content"]
             for content in message.content:
                 if isinstance(content, ToolUseBlock):
-                    processed_message["content"].append(
+                    content_list.append(
                         AnthropicToolUseBlock(
                             id=content.id,
                             name=content.name,
@@ -135,14 +137,25 @@ class AnthropicTextGenerationPayloadAdapter(LLMTextGenerationPayloadAdapter):
                         )
                     )
                 elif isinstance(content, TextBlock):
-                    processed_message["content"].append(
+                    content_list.append(
                         AnthropicTextBlock(type=content.type, text=content.text)
                     )
                 elif isinstance(content, ToolResultBlock):
-                    processed_message["content"].append(
+                    if isinstance(content.content, str):
+                        adapted_tr_content: Any = content.content
+                    else:
+                        adapted_tr_content = [
+                            {"type": item.type, "text": item.text}
+                            if isinstance(item, TextBlock)
+                            else item
+                            if isinstance(item, dict)
+                            else {"type": "text", "text": str(item)}
+                            for item in content.content
+                        ]
+                    content_list.append(
                         AnthropicToolResultBlockParam(
                             tool_use_id=content.tool_use_id,
-                            content=content.content,
+                            content=adapted_tr_content,
                             is_error=content.is_error,
                             type=content.type,
                         )
@@ -187,17 +200,18 @@ class GeminiTextGenerationPayloadAdapter(LLMTextGenerationPayloadAdapter):
                 elif isinstance(content, TextBlock):
                     parts.append(GeminiPart.from_text(text=content.text))
                 elif isinstance(content, ToolResultBlock):
+
+                    def _normalise(item: Any) -> str:
+                        if isinstance(item, dict):
+                            return item.get("text", str(item))
+                        if hasattr(item, "text"):
+                            return str(getattr(item, "text"))
+                        return str(item)
+
                     output = (
                         content.content
                         if isinstance(content.content, str)
-                        else "\n".join(
-                            item.get("text", str(item))
-                            if isinstance(item, dict)
-                            else item.text
-                            if hasattr(item, "text")
-                            else str(item)
-                            for item in content.content
-                        )
+                        else "\n".join(_normalise(i) for i in content.content)
                     )
                     parts.append(
                         GeminiPart.from_function_response(

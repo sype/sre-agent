@@ -8,6 +8,31 @@ The current MCP servers we deploy are:
 3. Slack MCP
 4. Prompt server MCP
 
+## Recent enhancements
+
+- Prompt server now supports dynamic overrides per request:
+  - `repo_url`: full GitHub URL (supports branch/path). The server derives organisation, repo, and project root.
+  - `namespace` and `container`: hint Kubernetes diagnostics for multi‑namespace or multi‑container pods.
+- Evidence‑driven prompt: requests clearer findings (timestamps, pod/container, file:line excerpts) and concise next actions.
+
+### Example
+
+HTTP:
+
+```bash
+curl -X POST http://localhost:8003/diagnose \
+  -H "Authorization: Bearer $DEV_BEARER_TOKEN" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  --data-urlencode "text=website" \
+  --data-urlencode "repo_url=https://github.com/<org>/<repo>/tree/main/<app-path>" \
+  --data-urlencode "namespace=dev-website" \
+  --data-urlencode "container=website"
+```
+
+Slack:
+
+- `/diagnose website repo_url=https://github.com/<org>/<repo>/tree/main/<app-path> namespace=dev-website container=website`
+
 # Attribution
 
 The following MCP servers are based off of existing implementations:

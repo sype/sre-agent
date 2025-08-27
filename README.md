@@ -392,6 +392,96 @@ Find all the docs you need in the [docs](docs) folder:
 - [Credentials](docs/credentials.md)
 - [Security Testing](docs/security-testing.md)
 
+## Changelog (highlights)
+
+### Bare‑metal and developer experience
+- Added `compose.baremetal.yaml` with first‑class bare‑metal support.
+  - Mount a direct kubeconfig via `KUBECONFIG_PATH` and set `KUBECONFIG` in the Kubernetes MCP container.
+- Added `scripts/kubeconfig-helper.sh import /path/to/kubeconfig` to record the absolute kubeconfig path into `.env` (no merging/rewriting kubeconfigs).
+- Kubernetes MCP server now prefers `KUBECONFIG` (then `$HOME/.kube/config`) and only falls back to cloud helpers (EKS/GKE) when needed.
+- Orchestrator auth can be disabled for local dev with `ORCHESTRATOR_DISABLE_AUTH=true` (production default remains unchanged).
+- Resilient env parsing for `SERVICES` and `TOOLS` (accepts JSON array or comma‑separated; empty values become []).
+
+### Prompt flexibility and better results
+- Prompt server accepts optional overrides in each request:
+  - `repo_url` (full GitHub URL, including optional branch/path), `namespace`, and `container`.
+  - When `repo_url` has no path, default to repo root for code browsing.
+- The diagnosis prompt was refined to produce evidence‑based findings (timestamps, pod/container, file:line snippets) and clear next actions.
+
+### LLM and firewall hardening
+- Lazy LLM provider instantiation so only the selected provider needs credentials (no `GEMINI_API_KEY` required when using Anthropic, etc.).
+- Firewall now uses `HF_TOKEN`/`HUGGING_FACE_HUB_TOKEN` to authenticate for gated models.
+
+### Why these changes?
+- Faster onboarding and reproducible local tests on any cluster (bare‑metal or remote) without modifying kubeconfigs.
+- Less friction in configuring repos/namespaces/containers per service by passing `repo_url`, `namespace`, and `container` dynamically.
+- Fewer spurious failures during development due to missing provider keys or gated model access.
+
+### How to use (quick examples)
+- Run bare‑metal:
+  - `scripts/kubeconfig-helper.sh import /absolute/path/to/kubeconfig`
+  - `docker compose -f compose.baremetal.yaml up --build`
+- Call diagnose with overrides:
+  - `curl -X POST http://localhost:8003/diagnose -H "Authorization: Bearer $DEV_BEARER_TOKEN" -H "Content-Type: application/x-www-form-urlencoded" --data-urlencode "text=<service>" --data-urlencode "repo_url=https://github.com/<org>/<repo>/tree/<branch>/<path>" --data-urlencode "namespace=<ns>" --data-urlencode "container=<container>"`
+
+## Testing
+
+### Unit tests (fast)
+
+Run inside the prompt-server image to avoid host Python conflicts:
+
+```bash
+docker compose -f compose.baremetal.yaml build prompt-server
+docker compose -f compose.baremetal.yaml run --rm --no-deps \
+  -v "$PWD":/app -w /app \
+  --entrypoint sh prompt-server \
+  -lc 'uv sync --all-extras && uv run python -m pytest -q -k "not security_tests"'
+```
+
+Or on the host with uvx:
+
+```bash
+uvx --with pytest --with pytest-cov pytest -q -k "not security_tests"
+```
+
+### Security tests (guardrails and input validation)
+
+1) Start services the tests talk to:
+
+```bash
+docker compose -f compose.baremetal.yaml up -d llama-firewall orchestrator
+```
+
+2) Optional: allow unauthenticated diagnose requests in dev OR align token with the test expectations.
+
+```bash
+# Option A: Dev mode (skip auth)
+echo 'ORCHESTRATOR_DISABLE_AUTH=true' >> .env
+docker compose -f compose.baremetal.yaml up -d orchestrator
+
+# Option B: Use the token expected by tests
+sed -i.bak 's/^DEV_BEARER_TOKEN=.*/DEV_BEARER_TOKEN=password/' .env || true
+docker compose -f compose.baremetal.yaml up -d orchestrator
+```
+
+3) Warm up guardrails once (first call loads models):
+
+```bash
+curl -m 180 -sS -X POST http://localhost:8000/check \
+  -H 'Content-Type: application/json' \
+  -d '{"content":"warmup","is_tool":false}' | cat
+```
+
+4) Run the security tests from the host:
+
+```bash
+# Run both tests
+uvx --with requests --with pytest-cov pytest -q tests/security_tests
+
+# If you need to skip the guardrails test temporarily
+uvx --with requests --with pytest-cov pytest -q tests/security_tests -k 'not test_gaurdrails'
+```
+
 ## 🙏 Acknowledgements & Attribution
 
 Big thanks to:

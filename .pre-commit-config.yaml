@@ -36,7 +36,7 @@ repos:
     hooks:
       - id: mypy
         language: system
-        args: ["--config-file=pyproject.toml", "--follow-untyped-imports"]
+        args: ["--config-file=pyproject.toml"]
         exclude: ^tests/
 
   - repo: https://github.com/crate-ci/typos
