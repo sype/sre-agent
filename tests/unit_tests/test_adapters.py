@@ -16,19 +16,18 @@ from mcp.types import Tool
 
 sys.path.insert(0, os.path.abspath("sre_agent"))
 
-from shared.schemas import (
-    MessageBlock,
-    TextBlock,
-    TextGenerationPayload,
-    ToolResultBlock,
-    ToolUseBlock,
-)
-
 from sre_agent.llm.utils.adapters import (
     AnthropicTextGenerationPayloadAdapter,
     AnthropicToMCPAdapter,
     GeminiTextGenerationPayloadAdapter,
     GeminiToMCPAdapter,
+)
+from sre_agent.shared.schemas import (
+    MessageBlock,
+    TextBlock,
+    TextGenerationPayload,
+    ToolResultBlock,
+    ToolUseBlock,
 )
 
 

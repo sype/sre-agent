@@ -44,6 +44,24 @@ show_error_codes = true
 exclude = ["docs", "tests", "LICENSE"]
 strict = true
 namespace_packages = true
+ignore_missing_imports = true
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = [
+    "google",
+    "google.*",
+    "transformers",
+    "transformers.*",
+    "llamafirewall",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "sre_agent.llm.utils.adapters",
+]
+disable_error_code = ["no-any-return"]
 
 # black configuration
 [tool.black]

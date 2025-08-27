@@ -2,7 +2,7 @@
 
 import os
 from abc import ABC, abstractmethod
-from typing import Any, cast
+from typing import Any
 
 from anthropic import Anthropic
 from anthropic.types import MessageParam as AnthropicMessageBlock
@@ -10,22 +10,23 @@ from anthropic.types import ToolParam
 from google import genai
 from google.genai import types
 from pydantic import BaseModel
-from shared.logger import logger  # type: ignore
-from shared.schemas import (  # type: ignore
-    Content,
-    Message,
-    TextBlock,
-    TextGenerationPayload,
-    Usage,
-)
-from utils.adapters import (  # type: ignore[import-not-found]
+
+from sre_agent.llm.utils.adapters import (
     AnthropicTextGenerationPayloadAdapter,
     AnthropicToMCPAdapter,
     GeminiTextGenerationPayloadAdapter,
     GeminiToMCPAdapter,
 )
-from utils.schemas import (  # type: ignore
+from sre_agent.llm.utils.schemas import (
     LLMSettings,
+)
+from sre_agent.shared.logger import logger
+from sre_agent.shared.schemas import (
+    Content,
+    Message,
+    TextBlock,
+    TextGenerationPayload,
+    Usage,
 )
 
 
@@ -59,10 +60,12 @@ class DummyClient(BaseClient):
             usage=None,
         )
 
-        logger.info(
-            f"Token usage - Input: {response.usage.input_tokens}, "
-            f"Output: {response.usage.output_tokens}, "
-        )
+        if response.usage:
+            logger.info(
+                "Token usage - Input: %s, Output: %s",
+                response.usage.input_tokens,
+                response.usage.output_tokens,
+            )
         return response
 
 
@@ -77,7 +80,7 @@ class AnthropicClient(BaseClient):
     @staticmethod
     def _add_cache_to_final_block(
         result: Any,
-    ) -> list[Content]:
+    ) -> list[Any]:
         """Convert a tool result to a list of text blocks.
 
         Args:
@@ -96,7 +99,7 @@ class AnthropicClient(BaseClient):
         # Add cache control to the blocks
         blocks[-1]["cache_control"] = {"type": "ephemeral"}
 
-        return cast(list[Content], blocks)
+        return blocks
 
     @staticmethod
     def cache_tools(tools: list[ToolParam]) -> list[ToolParam]:
@@ -138,19 +141,20 @@ class AnthropicClient(BaseClient):
         )
 
         logger.info(
-            f"Token usage - Input: {response.usage.input_tokens}, "
-            f"Output: {response.usage.output_tokens}, "
-            f"Cache Creation: {response.usage.cache_creation_input_tokens}, "
-            f"Cache Read: {response.usage.cache_read_input_tokens}"
+            "Token usage - Input: %s, Output: %s, Cache Creation: %s, Cache Read: %s",
+            response.usage.input_tokens,
+            response.usage.output_tokens,
+            response.usage.cache_creation_input_tokens,
+            response.usage.cache_read_input_tokens,
         )
 
-        adapter = AnthropicToMCPAdapter(response.content)
-        content = adapter.adapt()
+        anthropic_adapter = AnthropicToMCPAdapter(response.content)
+        content = anthropic_adapter.adapt()
 
         return Message(
             id=response.id,
             model=response.model,
-            content=content,
+            content=content,  # type: ignore[arg-type]
             role=response.role,
             stop_reason=response.stop_reason,
             usage=Usage(
@@ -205,8 +209,8 @@ class GeminiClient(BaseClient):
                 f"Total: {response.usage_metadata.total_token_count}"
             )
 
-        adapter = GeminiToMCPAdapter(response.candidates)
-        content = adapter.adapt()
+        gemini_adapter = GeminiToMCPAdapter(response.candidates)
+        content = gemini_adapter.adapt()
 
         return Message(
             id=response.response_id or f"gemini_{hash(str(response))}",

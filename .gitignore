@@ -253,3 +253,9 @@ tmpcharts/
 .release-name/
 
 *values-secrets.yaml
+
+# cursor
+.cursor/
+
+# ignore instructions
+instructions/

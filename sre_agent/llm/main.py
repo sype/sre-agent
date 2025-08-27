@@ -2,13 +2,12 @@
 
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
-from typing import Any, cast
+from typing import Any
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
-from shared.logger import logger  # type: ignore
-from shared.schemas import Message, TextGenerationPayload  # type: ignore
-from utils.clients import (  # type: ignore
+
+from sre_agent.llm.utils.clients import (
     AnthropicClient,
     BaseClient,
     DummyClient,
@@ -16,10 +15,12 @@ from utils.clients import (  # type: ignore
     OpenAIClient,
     SelfHostedClient,
 )
-from utils.schemas import (  # type: ignore
+from sre_agent.llm.utils.schemas import (
     LLMSettings,
     Provider,
 )
+from sre_agent.shared.logger import logger
+from sre_agent.shared.schemas import Message, TextGenerationPayload
 
 load_dotenv()
 
@@ -48,9 +49,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[Any, Any]:
     STATE["client"] = factory()
 
     if STATE["client"] is None:
-        raise ValueError(
-            f"Unknown LLM provider. Supported providers are: {", ".join(Provider)}"
-        )
+        supported = ", ".join([p.value for p in Provider])
+        raise ValueError(f"Unknown LLM provider. Supported providers are: {supported}")
 
     yield
     STATE.clear()
@@ -64,7 +64,7 @@ def generate(payload: TextGenerationPayload) -> Message:
     """An endpoint for generating text from messages and tools."""
     logger.debug(f"Payload: {payload}")
 
-    return cast(Message, STATE["client"].generate(payload))
+    return STATE["client"].generate(payload)
 
 
 @app.get("/health")

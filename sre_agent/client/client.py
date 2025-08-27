@@ -60,7 +60,11 @@ class MCPClient:
     ) -> None:
         """Clean up resources when exiting the context manager."""
         logger.debug("Exiting MCP client context")
-        await self.exit_stack.__aexit__(exc_type, exc_val, exc_tb)
+        try:
+            await self.exit_stack.__aexit__(exc_type, exc_val, exc_tb)
+        except BaseException as e:  # noqa: BLE001
+            # Prevent noisy ExceptionGroup from bubbling and failing background task
+            logger.warning("Suppressing exception during MCPClient shutdown: %s", e)
 
     async def _run_firewall_check(self, text: str, is_tool: bool = False) -> bool:
         """Check text against the Llama Firewall and update messages if blocked.
@@ -82,9 +86,9 @@ class MCPClient:
 
         response.raise_for_status()
 
-        response = response.json()
+        json_data = cast(dict[str, Any], response.json())
 
-        result, block = response["result"], cast(bool, response["block"])
+        result, block = json_data["result"], cast(bool, json_data["block"])
 
         logger.info("Llama Firewall result: %s", "BLOCKED" if block else "ALLOWED")
 
@@ -119,13 +123,31 @@ class MCPClient:
 
         self.sessions[service] = ServerSession(tools=tools, session=session)
 
-    async def _get_prompt(self, service: str, slack_channel_id: str) -> MessageBlock:
+    async def _get_prompt(  # noqa: PLR0913
+        self,
+        service: str,
+        slack_channel_id: str,
+        repo_url: str | None = None,
+        namespace: str | None = None,
+        container: str | None = None,
+    ) -> MessageBlock:
         """A helper method for retrieving the prompt from the prompt server."""
+        prompt_arguments: dict[str, Any] = {
+            "service": service,
+            "slack_channel_id": slack_channel_id,
+            "repo_url": repo_url,
+            "namespace": namespace,
+            "container": container,
+        }
+
+        # Drop optional keys that were not provided to satisfy strict typing
+        clean_arguments = {k: v for k, v in prompt_arguments.items() if v is not None}
+
         prompt: GetPromptResult = await self.sessions[
             MCPServer.PROMPT
         ].session.get_prompt(
             "diagnose",
-            arguments={"service": service, "slack_channel_id": slack_channel_id},
+            arguments=clean_arguments,
         )
 
         if isinstance(prompt.messages[0].content, TextContent):
@@ -138,11 +160,22 @@ class MCPClient:
                 f"{type(prompt.messages[0].content)} is invalid for this agent."
             )
 
-    async def process_query(  # noqa: C901, PLR0912, PLR0915
-        self, service: str, slack_channel_id: str
+    async def process_query(  # noqa: C901, PLR0912, PLR0915, PLR0913
+        self,
+        service: str,
+        slack_channel_id: str,
+        repo_url: str | None = None,
+        namespace: str | None = None,
+        container: str | None = None,
     ) -> dict[str, Any]:
         """Process a query using Claude and available tools."""
-        query = await self._get_prompt(service, slack_channel_id)
+        query = await self._get_prompt(
+            service,
+            slack_channel_id,
+            repo_url=repo_url,
+            namespace=namespace,
+            container=container,
+        )
         logger.info(f"Processing query: {query}...")
         start_time = time.perf_counter()
 
@@ -315,11 +348,19 @@ app: FastAPI = FastAPI(
 )
 
 
-async def run_diagnosis_and_post(service: str) -> None:
+async def run_diagnosis_and_post(
+    service: str,
+    repo_url: str | None = None,
+    namespace: str | None = None,
+    container: str | None = None,
+) -> None:
     """Run diagnosis for a service and post results back to Slack.
 
     Args:
         service: The name of the service to diagnose.
+        repo_url: Optional GitHub repository URL to override org/repo/root.
+        namespace: Optional Kubernetes namespace for scoping diagnostics.
+        container: Optional container name to target within the pod.
     """
     timeout = _get_client_config().query_timeout
     try:
@@ -350,6 +391,9 @@ async def run_diagnosis_and_post(service: str) -> None:
                 result = await mcp_client.process_query(
                     service=service,
                     slack_channel_id=_get_client_config().slack_channel_id,
+                    repo_url=repo_url,
+                    namespace=namespace,
+                    container=container,
                 )
 
                 logger.info(
@@ -395,6 +439,9 @@ async def diagnose(
     """
     form_data = await request.form()
     text_data = form_data.get("text", "")
+    repo_url = form_data.get("repo_url")
+    namespace = form_data.get("namespace")
+    container = form_data.get("container")
     text = text_data.strip() if isinstance(text_data, str) else ""
     service = text or "cartservice"
 
@@ -409,7 +456,13 @@ async def diagnose(
 
     logger.info(f"Received diagnose request for service: {service}")
 
-    background_tasks.add_task(run_diagnosis_and_post, service)
+    background_tasks.add_task(
+        run_diagnosis_and_post,
+        service,
+        repo_url if isinstance(repo_url, str) else None,
+        namespace if isinstance(namespace, str) else None,
+        container if isinstance(container, str) else None,
+    )
 
     return JSONResponse(
         status_code=HTTPStatus.OK,
