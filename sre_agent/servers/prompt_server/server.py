@@ -1,9 +1,11 @@
 """A server containing a prompt to trigger the agent."""
 
+import os
 from dataclasses import dataclass
 from functools import lru_cache
 
 from fastapi import FastAPI
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 from mcp.server.fastmcp import FastMCP
 
 # Support both package (tests) and module-only (container) layouts
@@ -136,18 +138,41 @@ def diagnose(
                 "- Create at most one issue and one Slack message.",
             ]
 
-    step_templates = DiagnosePromptSteps.from_context(
-        PromptContext(
-            service=service,
-            ns_text=ns_text,
-            container_text=container_text,
-            org=org,
-            repo=repo,
-            root_text=root_text,
-            slack_channel_id=slack_channel_id,
-        )
+    # Template rendering using Jinja2
+    templates_dir = os.path.join(os.path.dirname(__file__), "templates")
+    env = Environment(
+        loader=FileSystemLoader(templates_dir),
+        autoescape=select_autoescape(),
     )
-    return "\n".join(step_templates.parts())
+
+    template_spec = cfg.prompt_template_path
+    if template_spec:
+        if template_spec.startswith("@"):
+            # Reference a template in the templates directory by name
+            template_name = template_spec[1:]
+            template = env.get_template(template_name)
+        elif os.path.isfile(template_spec):
+            with open(template_spec, encoding="utf-8") as f:
+                template_text = f.read()
+            template = env.from_string(template_text)
+        else:
+            # Treat as an inline Jinja2 template string
+            template = env.from_string(template_spec)
+    else:
+        template = env.get_template("diagnose.j2")
+
+    return template.render(
+        service=service,
+        slack_channel_id=slack_channel_id,
+        repo_url=repo_url,
+        namespace=namespace,
+        container=container,
+        org=org,
+        repo=repo,
+        root_text=root_text,
+        ns_text=ns_text,
+        container_text=container_text,
+    )
 
 
 app = FastAPI()

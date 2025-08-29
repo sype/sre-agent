@@ -53,6 +53,7 @@ services:
       - GITHUB_ORGANISATION=${GITHUB_ORGANISATION}
       - GITHUB_REPO_NAME=${GITHUB_REPO_NAME}
       - PROJECT_ROOT=${PROJECT_ROOT}
+      - DIAGNOSE_PROMPT_TEMPLATE=${DIAGNOSE_PROMPT_TEMPLATE}
     healthcheck:
       test: ["CMD", "nc", "-z", "localhost", "3001"]
       interval: 30s

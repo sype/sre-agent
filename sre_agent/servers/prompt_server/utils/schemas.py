@@ -16,7 +16,11 @@ load_dotenv()
 
 
 def _validate_fields(self: DataclassInstance) -> None:
+    # Allow some config fields to be optional/empty
+    empty_allowed = {"prompt_template_path"}
     for config in fields(self):
+        if config.name in empty_allowed:
+            continue
         attr = getattr(self, config.name)
 
         if not attr:
@@ -31,6 +35,8 @@ class PromptServerConfig:
     organisation: str = os.getenv("GITHUB_ORGANISATION", "")
     repo_name: str = os.getenv("GITHUB_REPO_NAME", "")
     project_root: str = os.getenv("PROJECT_ROOT", "")
+    # Optional: template path or inline template for diagnose prompt
+    prompt_template_path: str = os.getenv("DIAGNOSE_PROMPT_TEMPLATE", "")
 
     def __post_init__(self) -> None:
         """A post-constructor method for the dataclass."""
