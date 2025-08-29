@@ -1102,12 +1102,14 @@ version = "0.1.0"
 source = { virtual = "sre_agent/servers/prompt_server" }
 dependencies = [
     { name = "fastapi" },
+    { name = "jinja2" },
     { name = "mcp", extra = ["cli"] },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115.12" },
+    { name = "jinja2", specifier = ">=3.1" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.6.0" },
 ]
 

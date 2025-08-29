@@ -117,8 +117,11 @@ class MCPClient:
         logger.debug("Listing available tools")
         response = await session.list_tools()
         tools = response.tools
+        tool_names = [tool.name for tool in tools]
         logger.info(
-            f"Connected to {server_url} with tools: {[tool.name for tool in tools]}"
+            "Connected to %s with tools: %s",
+            server_url,
+            tool_names,
         )
 
         self.sessions[service] = ServerSession(tools=tools, session=session)
@@ -196,6 +199,10 @@ class MCPClient:
 
         final_text = []
 
+        # Fallback data: capture latest logs content to ensure a minimal response
+        logs_fallback_text: str | None = None
+        logs_fallback_meta: dict[str, Any] | None = None
+
         # Track token usage
         total_input_tokens = 0
         total_output_tokens = 0
@@ -255,16 +262,16 @@ class MCPClient:
                     tool_args = content.arguments
                     logger.info(f"LLM requested to use tool: {tool_name}")
 
+                    tool_call_msg = f"Calling tool {tool_name} with args: {tool_args}"
                     if await self._run_firewall_check(
-                        f"Calling tool {tool_name} with args: {tool_args}", is_tool=True
+                        tool_call_msg,
+                        is_tool=True,
                     ):
                         break
 
                     for service, session in self.sessions.items():
                         if tool_name in [tool.name for tool in session.tools]:
-                            logger.info(
-                                f"Calling tool {tool_name} with args: {tool_args}"
-                            )
+                            logger.info(tool_call_msg)
                             try:
                                 tool_start_time = time.perf_counter()
                                 result = await session.session.call_tool(
@@ -272,11 +279,63 @@ class MCPClient:
                                 )
                                 tool_duration = time.perf_counter() - tool_start_time
                                 logger.info(
-                                    f"Tool {tool_name} call took "
-                                    f"{tool_duration:.2f} seconds"
+                                    "Tool %s call took %.2f seconds",
+                                    tool_name,
+                                    tool_duration,
                                 )
                                 result_content = result.content
                                 is_error = result.isError
+
+                                # Capture logs for fallback if available and successful
+                                if tool_name == "get_logs" and not is_error:
+                                    try:
+                                        extracted_texts: list[str] = []
+                                        for item in result_content:
+                                            item_type = getattr(item, "type", None)
+                                            if item_type is None and isinstance(
+                                                item, dict
+                                            ):
+                                                item_type = item.get("type")
+                                            if item_type == "text":
+                                                item_text = (
+                                                    getattr(item, "text", None)
+                                                    if not isinstance(item, dict)
+                                                    else item.get("text")
+                                                )
+                                                if (
+                                                    isinstance(item_text, str)
+                                                    and item_text.strip()
+                                                ):
+                                                    extracted_texts.append(item_text)
+                                        if extracted_texts:
+                                            joined = "\n".join(extracted_texts)
+                                            # Keep excerpt for fallback
+                                            lines = joined.splitlines()
+                                            first_two_hundred_lines = lines[:200]
+                                            excerpt = "\n".join(
+                                                first_two_hundred_lines,
+                                            )
+                                            logs_fallback_text = excerpt
+                                            # Preserve useful meta from the call
+                                            if isinstance(tool_args, dict):
+                                                logs_fallback_meta = {
+                                                    k: v
+                                                    for k, v in tool_args.items()
+                                                    if k
+                                                    in {
+                                                        "namespace",
+                                                        "container",
+                                                        "name",
+                                                        "tail",
+                                                        "timestamps",
+                                                    }
+                                                }
+                                    except Exception as _e:  # noqa: BLE001
+                                        # Non-fatal; fallback only
+                                        logger.debug(
+                                            "Failed to extract logs fallback text: %s",
+                                            _e,
+                                        )
 
                                 if await self._run_firewall_check(
                                     str(result_content), is_tool=True
@@ -286,10 +345,22 @@ class MCPClient:
                                 tool_retries = 0
 
                             except McpError as e:
-                                error_msg = f"Tool '{tool_name}' failed with error: {str(e)}. Tool args were: {tool_args}. Check the arguments and try again fixing the error."  # noqa: E501
+                                error_msg = (
+                                    "Tool '"
+                                    + str(tool_name)
+                                    + "' failed with error: "
+                                    + str(e)
+                                    + ". Tool args were: "
+                                    + str(tool_args)
+                                    + ". Check the arguments and try again "
+                                    "fixing the error."
+                                )
                                 logger.info(error_msg)
                                 result_content = [
-                                    TextBlock(type="text", text=error_msg)
+                                    TextBlock(
+                                        type="text",
+                                        text=error_msg,
+                                    )
                                 ]
                                 is_error = True
                                 tool_retries += 1
@@ -300,9 +371,8 @@ class MCPClient:
                             f"Tool {tool_name} not found in available tools."
                         )
 
-                    final_text.append(
-                        f"[Calling tool {tool_name} with args {tool_args}]"
-                    )
+                    tool_call_tag = f"[Calling tool {tool_name} with args {tool_args}]"
+                    final_text.append(tool_call_tag)
 
                     assistant_message_content.append(content)
                     self.messages.append(
@@ -325,11 +395,38 @@ class MCPClient:
                     )
 
         total_duration = time.perf_counter() - start_time
-        logger.info(f"Total process_query execution took {total_duration:.2f} seconds")
+        logger.info(
+            "Total process_query execution took %.2f seconds",
+            total_duration,
+        )
 
         logger.info("Query processing completed")
+        # Ensure a minimal response using logs if the LLM response was empty
+        aggregated_text = "\n".join(final_text).strip()
+        if not aggregated_text and logs_fallback_text:
+            ns = (logs_fallback_meta or {}).get("namespace")
+            container = (logs_fallback_meta or {}).get("container")
+            pod = (logs_fallback_meta or {}).get("name")
+            header_parts = []
+            if ns:
+                header_parts.append(f"namespace={ns}")
+            if container:
+                header_parts.append(f"container={container}")
+            if pod:
+                header_parts.append(f"pod={pod}")
+            header = (
+                f"Logs-only fallback summary ({', '.join(header_parts)})"
+                if header_parts
+                else "Logs-only fallback summary"
+            )
+            aggregated_text = f"{header}\n\n{logs_fallback_text}"
+        elif not aggregated_text:
+            aggregated_text = (
+                "No diagnostics available. No logs or code insights could be retrieved."
+            )
+
         return {
-            "response": "\n".join(final_text),
+            "response": aggregated_text,
             "token_usage": {
                 "input_tokens": total_input_tokens,
                 "output_tokens": total_output_tokens,
@@ -396,13 +493,15 @@ async def run_diagnosis_and_post(
                     container=container,
                 )
 
+                tu = result["token_usage"]
                 logger.info(
-                    f"Token usage - Input: {result['token_usage']['input_tokens']}, "
-                    f"Output: {result['token_usage']['output_tokens']}, "
-                    f"Cache Creation:"
-                    f" {result['token_usage']['cache_creation_tokens']}, "
-                    f"Cache Read: {result['token_usage']['cache_read_tokens']}, "
-                    f"Total: {result['token_usage']['total_tokens']}"
+                    "Token usage - Input: %s, Output: %s, Cache Creation: %s, "
+                    "Cache Read: %s, Total: %s",
+                    tu["input_tokens"],
+                    tu["output_tokens"],
+                    tu["cache_creation_tokens"],
+                    tu["cache_read_tokens"],
+                    tu["total_tokens"],
                 )
                 logger.info("Query processed successfully")
                 logger.info(f"Diagnosis result for {service}: {result['response']}")
@@ -535,14 +634,15 @@ async def health() -> JSONResponse:
         )
     else:
         status_code = status.HTTP_200_OK
+        checked = sorted([s.name for s in all_servers])
         response_detail = {
             "status": "OK",
             "detail": "All required MCP server connections are healthy.",
-            "checked_servers": sorted([s.name for s in all_servers]),
+            "checked_servers": checked,
         }
         logger.info(
-            "Health check completed successfully. All connections healthy: "
-            f"{sorted([s.name for s in all_servers])}"
+            "Health check completed successfully. All connections healthy: %s",
+            checked,
         )
 
     return JSONResponse(content=response_detail, status_code=status_code)

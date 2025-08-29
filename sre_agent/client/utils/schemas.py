@@ -13,8 +13,7 @@ if TYPE_CHECKING:
     from _typeshed import DataclassInstance
 from mcp import ClientSession
 from mcp.types import Tool
-
-from sre_agent.shared.logger import logger
+from shared.logger import logger
 
 DEFAULT_QUERY_TIMEOUT = 300
 

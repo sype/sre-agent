@@ -44,7 +44,7 @@ The SRE Agent supports multiple the following LLM providers:
 ## 🛠️ Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/)
-- A `.env` file in your project root ([see below](#getting-started))
+- A `.env` file in your project root ([see below](#getting-started)). See `.env.example` for a template, including `DIAGNOSE_PROMPT_TEMPLATE` for custom prompt templates.
 - An app deployed on AWS EKS (Elastic Kubernetes Service) or GCP GKE (Google Kubernetes Engine)
 
 ## ⚡ Quick Start (5 minutes)
@@ -407,6 +407,19 @@ Find all the docs you need in the [docs](docs) folder:
   - `repo_url` (full GitHub URL, including optional branch/path), `namespace`, and `container`.
   - When `repo_url` has no path, default to repo root for code browsing.
 - The diagnosis prompt was refined to produce evidence‑based findings (timestamps, pod/container, file:line snippets) and clear next actions.
+
+- Diagnose prompt is now template‑driven (Jinja2):
+  - Default template lives at `sre_agent/servers/prompt_server/templates/diagnose.j2`.
+  - New env var `DIAGNOSE_PROMPT_TEMPLATE` controls the template source:
+    - Empty → use the default template file
+    - `@name` → load `templates/name` bundled in the image (e.g. `@diagnose.j2`)
+    - Absolute/relative file path → load template from file
+    - Any other string → treat as an inline Jinja2 template
+  - All compose files now pass `DIAGNOSE_PROMPT_TEMPLATE` to the prompt server; add it to your `.env`.
+  - Bare‑metal compose maps prompt server port (`3001:3001`) for local curl testing.
+
+- Orchestrator logs‑only fallback:
+  - If code lookup fails or the LLM response is empty, the orchestrator now synthesises a concise logs summary so users always receive a minimal, useful result.
 
 ### LLM and firewall hardening
 - Lazy LLM provider instantiation so only the selected provider needs credentials (no `GEMINI_API_KEY` required when using Anthropic, etc.).
